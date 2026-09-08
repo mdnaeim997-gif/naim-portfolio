@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { LogOut, Plus, Trash2, Pencil, X, Link2, Lock } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { LogOut, Plus, Trash2, Pencil, X, Link2, Lock, UploadCloud, Loader2 } from 'lucide-react';
 import { supabase, type Project, type SocialLink, type ProjectCategory } from '../lib/supabase';
 
 const ADMIN_EMAIL = 'mdnaeim997@gmail.com';
@@ -234,18 +234,57 @@ function ProjectForm({
   const [behanceUrl, setBehanceUrl] = useState(project?.behance_url ?? '');
   const [description, setDescription] = useState(project?.description ?? '');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError('');
+    setUploading(true);
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+    const filePath = `covers/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('project-covers')
+      .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+    if (uploadError) {
+      setError(uploadError.message);
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('project-covers')
+      .getPublicUrl(filePath);
+
+    if (urlData?.publicUrl) {
+      setCoverUrl(urlData.publicUrl);
+    }
+    setUploading(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError('');
 
+    if (!coverUrl) {
+      setError('Please upload a cover image first.');
+      setSaving(false);
+      return;
+    }
+
     const payload = {
       title,
       category,
       cover_url: coverUrl,
-      behance_url: behanceUrl,
+      behance_url: behanceUrl || 'https://www.behance.net/',
       description,
     };
 
@@ -306,28 +345,62 @@ function ProjectForm({
               <option value="digital_marketing">Digital Marketing</option>
             </select>
           </div>
+
+          {/* Cover image upload */}
           <div>
-            <label className="block text-xs text-slate-500 mb-1.5">Cover Image URL</label>
+            <label className="block text-xs text-slate-500 mb-1.5">Cover Image</label>
             <input
-              type="url"
-              value={coverUrl}
-              onChange={(e) => setCoverUrl(e.target.value)}
-              required
-              placeholder="https://..."
-              className="w-full px-4 py-2.5 rounded-lg bg-base-800/60 border border-slate-700/40 text-sm text-white focus:outline-none focus:border-cyan-400/40"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
             />
+            {coverUrl ? (
+              <div className="relative rounded-lg overflow-hidden border border-slate-700/40 group">
+                <img src={coverUrl} alt="Cover preview" className="w-full h-40 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-sm font-medium"
+                >
+                  <UploadCloud className="w-5 h-5" /> Change Image
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full h-40 rounded-lg border-2 border-dashed border-slate-600/50 hover:border-cyan-400/40 bg-base-800/40 flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-cyan-300 transition-all disabled:opacity-50"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-7 h-7 animate-spin" />
+                    <span className="text-sm">Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="w-7 h-7" />
+                    <span className="text-sm">Click to upload from your PC</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
+
+          {/* External / Behance link */}
           <div>
-            <label className="block text-xs text-slate-500 mb-1.5">Behance URL</label>
+            <label className="block text-xs text-slate-500 mb-1.5">External Link / Behance Link (optional)</label>
             <input
               type="url"
-              value={behanceUrl}
+              value={behanceUrl === 'https://www.behance.net/' ? '' : behanceUrl}
               onChange={(e) => setBehanceUrl(e.target.value)}
-              required
-              placeholder="https://behance.net/..."
-              className="w-full px-4 py-2.5 rounded-lg bg-base-800/60 border border-slate-700/40 text-sm text-white focus:outline-none focus:border-cyan-400/40"
+              placeholder="https://behance.net/your-project"
+              className="w-full px-4 py-2.5 rounded-lg bg-base-800/60 border border-slate-700/40 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/40"
             />
           </div>
+
           <div>
             <label className="block text-xs text-slate-500 mb-1.5">Description</label>
             <textarea
@@ -340,7 +413,7 @@ function ProjectForm({
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || uploading}
               className="flex-1 px-5 py-2.5 rounded-xl gradient-cyan text-white font-semibold disabled:opacity-50"
             >
               {saving ? 'Saving...' : project ? 'Update' : 'Create'}
