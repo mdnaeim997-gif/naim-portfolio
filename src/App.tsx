@@ -1,33 +1,29 @@
 import { useEffect, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from './lib/supabase';
 import { Hero } from './components/Hero';
 import { ProjectGrid } from './components/ProjectGrid';
 import { Footer } from './components/Footer';
 import { WhatsAppWidget } from './components/WhatsAppWidget';
 import { Admin } from './components/Admin';
 
+const ADMIN_FLAG_KEY = 'naeim_admin_authed';
+
 function App() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [authed, setAuthed] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const isAdminRoute = window.location.pathname.startsWith('/admin');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setAuthReady(true);
-    });
+    setAuthed(localStorage.getItem(ADMIN_FLAG_KEY) === 'true');
+    setAuthReady(true);
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setSession(sess);
-    });
-
-    return () => listener.subscription.unsubscribe();
+    const onLogin = () => setAuthed(localStorage.getItem(ADMIN_FLAG_KEY) === 'true');
+    window.addEventListener('naeim-admin-login', onLogin);
+    return () => window.removeEventListener('naeim-admin-login', onLogin);
   }, []);
 
   if (isAdminRoute) {
     if (!authReady) return null;
-    return <Admin session={session} />;
+    return <Admin session={authed} />;
   }
 
   return (

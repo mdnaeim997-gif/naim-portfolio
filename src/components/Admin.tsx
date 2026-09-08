@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
 import { LogOut, Plus, Trash2, Pencil, X, Link2, Lock } from 'lucide-react';
 import { supabase, type Project, type SocialLink, type ProjectCategory } from '../lib/supabase';
 
+const ADMIN_EMAIL = 'mdnaeim997@gmail.com';
+const ADMIN_PASSWORD = 'naeim@#%';
+const ADMIN_FLAG_KEY = 'naeim_admin_authed';
+
 interface AdminProps {
-  session: Session | null;
+  session: boolean;
 }
 
 export function Admin({ session }: AdminProps) {
@@ -17,14 +20,22 @@ export function Admin({ session }: AdminProps) {
     e.preventDefault();
     setAuthError('');
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setAuthError(error.message);
+
+    if (email.trim() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      localStorage.setItem(ADMIN_FLAG_KEY, 'true');
+      window.dispatchEvent(new Event('naeim-admin-login'));
+      setLoading(false);
+      return;
     }
+
+    setAuthError('Invalid email or password.');
     setLoading(false);
   };
 
-  const handleLogout = () => supabase.auth.signOut();
+  const handleLogout = () => {
+    localStorage.removeItem(ADMIN_FLAG_KEY);
+    window.dispatchEvent(new Event('naeim-admin-login'));
+  };
 
   if (!session) {
     return (
@@ -90,10 +101,10 @@ export function Admin({ session }: AdminProps) {
     );
   }
 
-  return <AdminDashboard session={session} onLogout={handleLogout} />;
+  return <AdminDashboard onLogout={handleLogout} />;
 }
 
-function AdminDashboard({ session, onLogout }: { session: Session; onLogout: () => void }) {
+function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [socials, setSocials] = useState<SocialLink[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -126,7 +137,7 @@ function AdminDashboard({ session, onLogout }: { session: Session; onLogout: () 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="font-display font-bold text-xl text-white">NAEIM VISUAL Admin</h1>
-            <p className="text-xs text-slate-500">{session.user.email}</p>
+            <p className="text-xs text-slate-500">{ADMIN_EMAIL}</p>
           </div>
           <div className="flex items-center gap-2">
             <a href="/" className="px-4 py-2 rounded-lg glass-light text-sm text-slate-300 hover:text-white">
