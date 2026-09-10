@@ -52,6 +52,7 @@ export interface SiteSettings {
   show_followers: boolean;
   show_views: boolean;
   behance_profile_url: string;
+  profile_url: string | null;
 }
 
 export function getSessionKey(): string {

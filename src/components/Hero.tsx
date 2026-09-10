@@ -6,9 +6,11 @@ import {
   IllustratorIcon,
   AfterEffectsIcon,
   MetaIcon,
+  BehanceIcon,
   getSocialIcon,
 } from '../lib/icons';
 import { supabase, type SocialLink, type SiteSettings, getSessionKey } from '../lib/supabase';
+import { type Lang, type Translation, translations, getStoredLang, subscribeLang } from '../lib/i18n';
 
 const orbitIcons = [
   { Comp: PremiereProIcon, label: 'Premiere Pro', wrap: false },
@@ -21,13 +23,21 @@ const orbitIcons = [
   { Comp: Wand2, label: 'Magic Wand', wrap: true },
 ];
 
+const BEHANCE_URL = 'https://www.behance.net/mdnaeim26';
+
 export function Hero() {
   const [socials, setSocials] = useState<SocialLink[]>([]);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [followerCount, setFollowerCount] = useState(0);
   const [totalViews, setTotalViews] = useState(0);
   const [following, setFollowing] = useState(false);
+  const [lang, setLang] = useState<Lang>(getStoredLang());
   const sessionKey = getSessionKey();
+
+  useEffect(() => {
+    const unsub = subscribeLang((l) => setLang(l));
+    return unsub;
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -65,6 +75,14 @@ export function Hero() {
     }
   };
 
+  const t: Translation = translations[lang];
+  const profileImg = settings?.profile_url || 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg';
+
+  // Build deduplicated social icons: always include Behance, then others from DB
+  const behanceFromDb = socials.find((s) => s.icon_key === 'behance');
+  const otherSocials = socials.filter((s) => s.icon_key !== 'behance');
+  const behanceUrl = behanceFromDb?.url || settings?.behance_profile_url || BEHANCE_URL;
+
   return (
     <section className="relative pt-20 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto flex flex-col items-center text-center">
@@ -100,11 +118,7 @@ export function Hero() {
             <div className="relative">
               <div className="absolute -inset-3 rounded-full bg-gradient-to-tr from-cyan-500/30 to-purple-500/30 blur-xl animate-pulse-glow" />
               <div className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-full overflow-hidden border-2 border-cyan-400/30 shadow-2xl">
-                <img
-                  src="https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg"
-                  alt="NAEIM VISUAL"
-                  className="w-full h-full object-cover"
-                />
+                <img src={profileImg} alt="NAEIM VISUAL" className="w-full h-full object-cover" />
               </div>
             </div>
           </div>
@@ -116,15 +130,15 @@ export function Hero() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
           </span>
-          <span className="text-sm font-medium text-emerald-300">Available for Freelance & Projects</span>
+          <span className="text-sm font-medium text-emerald-300">{t.hero.badge}</span>
         </div>
 
         {/* Title */}
         <h1 className="font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl text-white mb-2 tracking-tight">
-          NAEIM <span className="text-gradient-cyan">VISUAL</span>
+          {t.hero.titleFirst} <span className="text-gradient-cyan">{t.hero.titleSecond}</span>
         </h1>
         <p className="font-display font-semibold text-lg sm:text-xl text-slate-300 mb-4">
-          Visual Storyteller &amp; Meta Marketer
+          {t.hero.subtitle}
         </p>
 
         {/* Stats: followers + views */}
@@ -133,14 +147,14 @@ export function Hero() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl glass-light">
               <UserPlus className="w-4 h-4 text-cyan-300" />
               <span className="text-sm font-semibold text-white">{followerCount}</span>
-              <span className="text-xs text-slate-400">Followers</span>
+              <span className="text-xs text-slate-400">{t.hero.followers}</span>
             </div>
           )}
           {settings?.show_views && (
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl glass-light">
               <Eye className="w-4 h-4 text-purple-300" />
               <span className="text-sm font-semibold text-white">{totalViews.toLocaleString()}</span>
-              <span className="text-xs text-slate-400">Total Views</span>
+              <span className="text-xs text-slate-400">{t.hero.totalViews}</span>
             </div>
           )}
         </div>
@@ -155,21 +169,13 @@ export function Hero() {
           }`}
         >
           <UserPlus className="w-4 h-4" />
-          {following ? 'Following' : 'Follow'}
+          {following ? t.hero.following : t.hero.follow}
         </button>
 
-        {/* Bilingual bio box */}
-        <div className="glass rounded-2xl p-6 max-w-2xl mb-6 text-left space-y-3">
+        {/* Bio box — single language only */}
+        <div className="glass rounded-2xl p-6 max-w-2xl mb-6 text-left">
           <p className="text-sm leading-relaxed text-slate-300">
-            Hi, I'm Naeim — a visual storyteller and Meta marketer crafting compelling designs,
-            cinematic video edits, and high-converting digital campaigns. I help brands and creators
-            stand out with visuals that connect and content that converts.
-          </p>
-          <div className="h-px bg-slate-700/40" />
-          <p className="text-sm leading-relaxed text-slate-400" dir="rtl" lang="bn">
-            নাম আমার নাঈম — আমি একজন ভিজ্যুয়াল স্টোরিটেলার এবং মেটা মার্কেটার।
-            আমি আকর্ষণীয় ডিজাইন, সিনেম্যাটিক ভিডিও এডিট এবং হাই-কনভার্টিং ডিজিটাল
-            ক্যাম্পেইন তৈরি করে ব্র্যান্ড ও ক্রিয়েটরদের আলাদা করে তুলি।
+            {t.hero.bio}
           </p>
         </div>
 
@@ -179,7 +185,7 @@ export function Hero() {
             onClick={() => document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' })}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl gradient-cyan text-white font-semibold glow-cyan hover:scale-105 transition-transform"
           >
-            <Play className="w-5 h-5 fill-white" /> Watch My Work
+            <Play className="w-5 h-5 fill-white" /> {t.hero.watchWork}
           </button>
           <a
             href="https://wa.me/8801000000000"
@@ -187,13 +193,24 @@ export function Hero() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 text-white font-semibold glow-emerald hover:scale-105 transition-transform"
           >
-            <MessageCircle className="w-5 h-5" /> Chat On WhatsApp
+            <MessageCircle className="w-5 h-5" /> {t.hero.chatWhatsApp}
           </a>
         </div>
 
-        {/* Social icons — always show brand-colored icons */}
+        {/* Social icons — deduplicated, one per platform */}
         <div className="flex items-center gap-3">
-          {socials.map((s) => {
+          {/* Behance — always present, links to correct URL */}
+          <a
+            href={behanceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-11 h-11 flex items-center justify-center rounded-xl glass-light hover:scale-110 transition-all shadow-lg"
+            aria-label="Behance"
+          >
+            <BehanceIcon className="w-6 h-6" />
+          </a>
+          {/* Other social links from DB */}
+          {otherSocials.map((s) => {
             const Icon = getSocialIcon(s.icon_key);
             return (
               <a
@@ -208,19 +225,6 @@ export function Hero() {
               </a>
             );
           })}
-          {/* Always show Behance link */}
-          <a
-            href={settings?.behance_profile_url || 'https://www.behance.net/mdnaeim26'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-11 h-11 flex items-center justify-center rounded-xl glass-light hover:scale-110 transition-all shadow-lg"
-            aria-label="Behance"
-          >
-            <svg viewBox="0 0 24 24" className="w-6 h-6">
-              <rect width="24" height="24" rx="4" fill="#1769FF" />
-              <path d="M22 7h-7V5.5h7V7zm1.726 10c-.442 1.297-1.635 3-4.726 3-3.1 0-5.2-1.8-5.2-5.1 0-3.1 1.9-5.3 5-5.3 3.3 0 4.9 2.3 4.9 5.4v.7h-7.3c.1 1.3.7 2 2 2 1.1 0 1.6-.4 2-1.2l2.4.5zM9 5c2 0 3.5.7 4.2 1.8.7 1.1.8 2.4.8 3.7 0 1.5-.2 2.8-1.1 3.8-.9 1-2 1.4-3.5 1.4H2V5h7zm-.2 7c1.2 0 2.2-.5 2.2-2.4 0-1.9-1-2.3-2.3-2.3H4.5V12h4.3zM4.5 14.3V17h4.4c1.4 0 2.6-.4 2.6-2.4 0-1.9-1-2.3-2.4-2.3H4.5z" fill="#fff" />
-            </svg>
-          </a>
         </div>
 
         {/* Scroll hint */}

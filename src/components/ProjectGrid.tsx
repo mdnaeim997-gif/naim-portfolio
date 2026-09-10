@@ -2,25 +2,33 @@ import { useEffect, useState } from 'react';
 import { supabase, type Project } from '../lib/supabase';
 import { ProjectCard } from './ProjectCard';
 import { FilterTabs, type TabKey } from './FilterTabs';
+import { BehanceShowcase } from './BehanceShowcase';
+import { type Lang, type Translation, translations, getStoredLang, subscribeLang } from '../lib/i18n';
 
 export function ProjectGrid() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [active, setActive] = useState<TabKey>('all');
   const [loading, setLoading] = useState(true);
+  const [lang, setLang] = useState<Lang>(getStoredLang());
+
+  useEffect(() => {
+    const unsub = subscribeLang((l) => setLang(l));
+    return unsub;
+  }, []);
 
   useEffect(() => {
     supabase
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+      .then(({ data }) => {
         if (data) setProjects(data);
         setLoading(false);
       });
   }, []);
 
-  const filtered =
-    active === 'all' ? projects : projects.filter((p) => p.category === active);
+  const filtered = active === 'all' ? projects : projects.filter((p) => p.category === active);
+  const t: Translation = translations[lang];
 
   return (
     <div>
@@ -40,7 +48,7 @@ export function ProjectGrid() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-slate-500">No projects in this category yet.</p>
+          <p className="text-slate-500">{t.work.empty}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -49,6 +57,11 @@ export function ProjectGrid() {
           ))}
         </div>
       )}
+
+      {/* Behance showcase module — always visible below the project grid */}
+      <div className="mt-16">
+        <BehanceShowcase />
+      </div>
     </div>
   );
 }

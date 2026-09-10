@@ -3,6 +3,7 @@ import { Hero } from './components/Hero';
 import { ProjectGrid } from './components/ProjectGrid';
 import { Footer } from './components/Footer';
 import { WhatsAppWidget } from './components/WhatsAppWidget';
+import { LanguageToggle } from './components/LanguageToggle';
 import { Admin } from './components/Admin';
 
 const ADMIN_FLAG_KEY = 'naeim_admin_authed';
@@ -33,6 +34,11 @@ function App() {
         <div className="absolute top-[-10%] left-[10%] w-[600px] h-[600px] rounded-full bg-purple-500/10 blur-[120px]" />
         <div className="absolute top-[30%] right-[-5%] w-[500px] h-[500px] rounded-full bg-cyan-500/10 blur-[120px]" />
         <div className="absolute bottom-[10%] left-[20%] w-[400px] h-[400px] rounded-full bg-emerald-500/5 blur-[100px]" />
+      </div>
+
+      {/* Top nav bar with language toggle */}
+      <div className="relative z-20 flex justify-end px-4 sm:px-6 pt-4">
+        <LanguageToggle />
       </div>
 
       <div className="relative z-10">

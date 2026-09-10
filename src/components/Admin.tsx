@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import {
   LogOut, Plus, Trash2, Pencil, X, Link2, Lock, UploadCloud, Loader2,
-  MessageSquare, Check, Eye, EyeOff, Settings,
+  MessageSquare, Check, Eye, EyeOff, Settings, User,
 } from 'lucide-react';
 import {
   supabase, type Project, type SocialLink, type ProjectCategory,
@@ -480,6 +480,8 @@ function CommentsTab() {
 function SettingsTab() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [saved, setSaved] = useState(false);
+  const [uploadingProfile, setUploadingProfile] = useState(false);
+  const profileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.from('site_settings').select('*').maybeSingle().then(({ data }) => {
@@ -487,16 +489,17 @@ function SettingsTab() {
     });
   }, []);
 
+  const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+
   const toggle = async (field: 'show_followers' | 'show_views') => {
     if (!settings) return;
     const newValue = !settings[field];
     setSettings({ ...settings, [field]: newValue });
     await supabase.from('site_settings').update({ [field]: newValue }).eq('id', settings.id);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    showSaved();
   };
 
-  const updateBehanceUrl = async (url: string) => {
+  const updateBehanceUrl = (url: string) => {
     if (!settings) return;
     setSettings({ ...settings, behance_profile_url: url });
   };
@@ -504,8 +507,31 @@ function SettingsTab() {
   const saveBehanceUrl = async () => {
     if (!settings) return;
     await supabase.from('site_settings').update({ behance_profile_url: settings.behance_profile_url }).eq('id', settings.id);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    showSaved();
+  };
+
+  const handleProfileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !settings) return;
+    setUploadingProfile(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `profile-${Date.now()}.${fileExt}`;
+      const filePath = `profile/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from('project-covers').upload(filePath, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('project-covers').getPublicUrl(filePath);
+      if (urlData?.publicUrl) {
+        const newUrl = urlData.publicUrl;
+        setSettings({ ...settings, profile_url: newUrl });
+        await supabase.from('site_settings').update({ profile_url: newUrl }).eq('id', settings.id);
+        showSaved();
+      }
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
+    }
+    setUploadingProfile(false);
   };
 
   if (!settings) return <div className="text-slate-500 text-sm">Loading settings...</div>;
@@ -517,6 +543,26 @@ function SettingsTab() {
       {saved && (
         <div className="px-4 py-3 rounded-lg bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-sm">Settings saved!</div>
       )}
+
+      {/* Profile picture upload */}
+      <div className="glass rounded-xl p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+          <User className="w-4 h-4 text-cyan-300" /> Profile Picture
+        </h3>
+        <p className="text-xs text-slate-500">Upload a profile photo — shown as the circular avatar in the hero section.</p>
+        <input ref={profileInputRef} type="file" accept="image/*" onChange={handleProfileUpload} className="hidden" />
+        <div className="flex items-center gap-4">
+          <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-cyan-400/30 shrink-0">
+            <img src={settings.profile_url || 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg'}
+              alt="Profile" className="w-full h-full object-cover" />
+          </div>
+          <button type="button" onClick={() => profileInputRef.current?.click()} disabled={uploadingProfile}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl gradient-cyan text-white text-sm font-semibold disabled:opacity-50">
+            {uploadingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+            {uploadingProfile ? 'Uploading...' : 'Upload Photo'}
+          </button>
+        </div>
+      </div>
 
       {/* Visibility toggles */}
       <div className="glass rounded-xl p-5 space-y-4">
