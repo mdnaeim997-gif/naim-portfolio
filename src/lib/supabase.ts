@@ -6,6 +6,8 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type ProjectCategory = 'graphic_design' | 'video_editing' | 'digital_marketing';
+export type ProjectSource = 'website' | 'behance';
+export type CommentStatus = 'pending' | 'approved' | 'hidden';
 
 export interface Project {
   id: string;
@@ -16,6 +18,16 @@ export interface Project {
   description: string;
   created_at: string;
   likes: number;
+  views: number;
+  source: ProjectSource;
+}
+
+export interface ProjectImage {
+  id: string;
+  project_id: string;
+  image_url: string;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface SocialLink {
@@ -32,6 +44,14 @@ export interface ProjectComment {
   author_name: string;
   body: string;
   created_at: string;
+  status: CommentStatus;
+}
+
+export interface SiteSettings {
+  id: string;
+  show_followers: boolean;
+  show_views: boolean;
+  behance_profile_url: string;
 }
 
 export function getSessionKey(): string {

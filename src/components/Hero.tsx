@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Play, MessageCircle, ArrowDown, Camera, Video, Wand2, Facebook } from 'lucide-react';
+import { Play, MessageCircle, ArrowDown, Camera, Video, Wand2, UserPlus, Eye } from 'lucide-react';
 import {
   PremiereProIcon,
   PhotoshopIcon,
   IllustratorIcon,
   AfterEffectsIcon,
   MetaIcon,
-  BehanceIcon,
+  getSocialIcon,
 } from '../lib/icons';
-import { supabase, type SocialLink } from '../lib/supabase';
+import { supabase, type SocialLink, type SiteSettings, getSessionKey } from '../lib/supabase';
 
 const orbitIcons = [
   { Comp: PremiereProIcon, label: 'Premiere Pro', wrap: false },
@@ -21,24 +21,49 @@ const orbitIcons = [
   { Comp: Wand2, label: 'Magic Wand', wrap: true },
 ];
 
-function socialIconFor(key: string) {
-  if (key === 'behance') return BehanceIcon;
-  if (key === 'facebook' || key === 'facebook-page') return Facebook;
-  return MessageCircle;
-}
-
 export function Hero() {
   const [socials, setSocials] = useState<SocialLink[]>([]);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [totalViews, setTotalViews] = useState(0);
+  const [following, setFollowing] = useState(false);
+  const sessionKey = getSessionKey();
 
   useEffect(() => {
-    supabase
-      .from('social_links')
-      .select('*')
-      .order('sort_order', { ascending: true })
-      .then(({ data }) => {
-        if (data) setSocials(data);
-      });
-  }, []);
+    (async () => {
+      const [{ data: s }, { data: st }, { count: fc }, { data: views }] = await Promise.all([
+        supabase.from('social_links').select('*').order('sort_order', { ascending: true }),
+        supabase.from('site_settings').select('*').maybeSingle(),
+        supabase.from('follows').select('*', { count: 'exact', head: true }),
+        supabase.from('projects').select('views'),
+      ]);
+      if (s) setSocials(s);
+      if (st) setSettings(st);
+      if (fc !== null) setFollowerCount(fc);
+      if (views) setTotalViews(views.reduce((sum, p) => sum + (p.views || 0), 0));
+
+      const { data: existing } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('session_key', sessionKey)
+        .maybeSingle();
+      setFollowing(!!existing);
+    })();
+  }, [sessionKey]);
+
+  const handleFollow = async () => {
+    if (following) {
+      await supabase.from('follows').delete().eq('session_key', sessionKey);
+      setFollowing(false);
+      setFollowerCount((c) => Math.max(0, c - 1));
+    } else {
+      const { error } = await supabase.from('follows').insert({ session_key: sessionKey });
+      if (!error) {
+        setFollowing(true);
+        setFollowerCount((c) => c + 1);
+      }
+    }
+  };
 
   return (
     <section className="relative pt-20 pb-12 px-4 sm:px-6 lg:px-8">
@@ -98,9 +123,40 @@ export function Hero() {
         <h1 className="font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl text-white mb-2 tracking-tight">
           NAEIM <span className="text-gradient-cyan">VISUAL</span>
         </h1>
-        <p className="font-display font-semibold text-lg sm:text-xl text-slate-300 mb-6">
+        <p className="font-display font-semibold text-lg sm:text-xl text-slate-300 mb-4">
           Visual Storyteller &amp; Meta Marketer
         </p>
+
+        {/* Stats: followers + views */}
+        <div className="flex items-center gap-4 mb-6">
+          {settings?.show_followers && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl glass-light">
+              <UserPlus className="w-4 h-4 text-cyan-300" />
+              <span className="text-sm font-semibold text-white">{followerCount}</span>
+              <span className="text-xs text-slate-400">Followers</span>
+            </div>
+          )}
+          {settings?.show_views && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl glass-light">
+              <Eye className="w-4 h-4 text-purple-300" />
+              <span className="text-sm font-semibold text-white">{totalViews.toLocaleString()}</span>
+              <span className="text-xs text-slate-400">Total Views</span>
+            </div>
+          )}
+        </div>
+
+        {/* Follow button */}
+        <button
+          onClick={handleFollow}
+          className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm transition-all mb-6 ${
+            following
+              ? 'bg-slate-700/50 text-slate-300 border border-slate-600/40'
+              : 'gradient-cyan text-white glow-cyan hover:scale-105'
+          }`}
+        >
+          <UserPlus className="w-4 h-4" />
+          {following ? 'Following' : 'Follow'}
+        </button>
 
         {/* Bilingual bio box */}
         <div className="glass rounded-2xl p-6 max-w-2xl mb-6 text-left space-y-3">
@@ -135,23 +191,36 @@ export function Hero() {
           </a>
         </div>
 
-        {/* Social icons */}
+        {/* Social icons — always show brand-colored icons */}
         <div className="flex items-center gap-3">
           {socials.map((s) => {
-            const Icon = socialIconFor(s.icon_key);
+            const Icon = getSocialIcon(s.icon_key);
             return (
               <a
                 key={s.id}
                 href={s.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 flex items-center justify-center rounded-xl glass-light text-slate-400 hover:text-cyan-300 hover:border-cyan-400/30 transition-all hover:scale-110"
+                className="w-11 h-11 flex items-center justify-center rounded-xl glass-light hover:scale-110 transition-all shadow-lg"
                 aria-label={s.label}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-6 h-6" />
               </a>
             );
           })}
+          {/* Always show Behance link */}
+          <a
+            href={settings?.behance_profile_url || 'https://www.behance.net/mdnaeim26'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-11 h-11 flex items-center justify-center rounded-xl glass-light hover:scale-110 transition-all shadow-lg"
+            aria-label="Behance"
+          >
+            <svg viewBox="0 0 24 24" className="w-6 h-6">
+              <rect width="24" height="24" rx="4" fill="#1769FF" />
+              <path d="M22 7h-7V5.5h7V7zm1.726 10c-.442 1.297-1.635 3-4.726 3-3.1 0-5.2-1.8-5.2-5.1 0-3.1 1.9-5.3 5-5.3 3.3 0 4.9 2.3 4.9 5.4v.7h-7.3c.1 1.3.7 2 2 2 1.1 0 1.6-.4 2-1.2l2.4.5zM9 5c2 0 3.5.7 4.2 1.8.7 1.1.8 2.4.8 3.7 0 1.5-.2 2.8-1.1 3.8-.9 1-2 1.4-3.5 1.4H2V5h7zm-.2 7c1.2 0 2.2-.5 2.2-2.4 0-1.9-1-2.3-2.3-2.3H4.5V12h4.3zM4.5 14.3V17h4.4c1.4 0 2.6-.4 2.6-2.4 0-1.9-1-2.3-2.4-2.3H4.5z" fill="#fff" />
+            </svg>
+          </a>
         </div>
 
         {/* Scroll hint */}
