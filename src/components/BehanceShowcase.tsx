@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ExternalLink, ArrowUpRight } from 'lucide-react';
 import { supabase, type SiteSettings, type Project } from '../lib/supabase';
 import { type Lang, type Translation, translations, getStoredLang, subscribeLang } from '../lib/i18n';
+import { BehanceIcon } from '../lib/icons';
 
 const DEFAULT_BEHANCE_URL = 'https://www.behance.net/mdnaeim26';
 
@@ -31,10 +32,7 @@ export function BehanceShowcase() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display font-bold text-xl sm:text-2xl text-white flex items-center gap-2">
-          <svg viewBox="0 0 24 24" className="w-6 h-6">
-            <rect width="24" height="24" rx="4" fill="#1769FF" />
-            <path d="M22 7h-7V5.5h7V7zm1.726 10c-.442 1.297-1.635 3-4.726 3-3.1 0-5.2-1.8-5.2-5.1 0-3.1 1.9-5.3 5-5.3 3.3 0 4.9 2.3 4.9 5.4v.7h-7.3c.1 1.3.7 2 2 2 1.1 0 1.6-.4 2-1.2l2.4.5zM9 5c2 0 3.5.7 4.2 1.8.7 1.1.8 2.4.8 3.7 0 1.5-.2 2.8-1.1 3.8-.9 1-2 1.4-3.5 1.4H2V5h7zm-.2 7c1.2 0 2.2-.5 2.2-2.4 0-1.9-1-2.3-2.3-2.3H4.5V12h4.3zM4.5 14.3V17h4.4c1.4 0 2.6-.4 2.6-2.4 0-1.9-1-2.3-2.4-2.3H4.5z" fill="#fff" />
-          </svg>
+          <BehanceIcon className="w-6 h-6" />
           {t.work.behanceShowcase}
         </h3>
         <a href={behanceUrl} target="_blank" rel="noopener noreferrer"
@@ -43,7 +41,7 @@ export function BehanceShowcase() {
         </a>
       </div>
 
-      {/* Behance-linked projects from database */}
+      {/* Behance-synced projects from database */}
       {projects.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {projects.map((p) => (
@@ -62,13 +60,11 @@ export function BehanceShowcase() {
         </div>
       )}
 
-      {/* Behance profile embed card — since Behance blocks direct iframe embedding */}
+      {/* Behance profile card — since Behance blocks direct iframe embedding */}
       <div className="glass rounded-2xl overflow-hidden border border-[#1769FF]/20">
         <div className="bg-[#1769FF] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <svg viewBox="0 0 24 24" className="w-7 h-7">
-              <path d="M22 7h-7V5.5h7V7zm1.726 10c-.442 1.297-1.635 3-4.726 3-3.1 0-5.2-1.8-5.2-5.1 0-3.1 1.9-5.3 5-5.3 3.3 0 4.9 2.3 4.9 5.4v.7h-7.3c.1 1.3.7 2 2 2 1.1 0 1.6-.4 2-1.2l2.4.5zM9 5c2 0 3.5.7 4.2 1.8.7 1.1.8 2.4.8 3.7 0 1.5-.2 2.8-1.1 3.8-.9 1-2 1.4-3.5 1.4H2V5h7zm-.2 7c1.2 0 2.2-.5 2.2-2.4 0-1.9-1-2.3-2.3-2.3H4.5V12h4.3zM4.5 14.3V17h4.4c1.4 0 2.6-.4 2.6-2.4 0-1.9-1-2.3-2.4-2.3H4.5z" fill="#fff" />
-            </svg>
+            <BehanceIcon className="w-7 h-7" />
             <div>
               <p className="text-white font-semibold text-sm">@{userName}</p>
               <p className="text-blue-100 text-xs">Behance Portfolio</p>
@@ -87,9 +83,7 @@ export function BehanceShowcase() {
           </p>
           <a href={behanceUrl} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#1769FF] text-white text-sm font-bold hover:scale-105 transition-transform glow-cyan">
-            <svg viewBox="0 0 24 24" className="w-5 h-5">
-              <path d="M22 7h-7V5.5h7V7zm1.726 10c-.442 1.297-1.635 3-4.726 3-3.1 0-5.2-1.8-5.2-5.1 0-3.1 1.9-5.3 5-5.3 3.3 0 4.9 2.3 4.9 5.4v.7h-7.3c.1 1.3.7 2 2 2 1.1 0 1.6-.4 2-1.2l2.4.5zM9 5c2 0 3.5.7 4.2 1.8.7 1.1.8 2.4.8 3.7 0 1.5-.2 2.8-1.1 3.8-.9 1-2 1.4-3.5 1.4H2V5h7zm-.2 7c1.2 0 2.2-.5 2.2-2.4 0-1.9-1-2.3-2.3-2.3H4.5V12h4.3zM4.5 14.3V17h4.4c1.4 0 2.6-.4 2.6-2.4 0-1.9-1-2.3-2.4-2.3H4.5z" fill="#fff" />
-            </svg>
+            <BehanceIcon className="w-5 h-5" />
             {t.work.viewProfile}
           </a>
         </div>

@@ -34,6 +34,20 @@ body {
   background: #22D3EE;
 }
 
+/* Hide "Made in Bolt" badge completely */
+a[href*="bolt.new"],
+a[href*="bolt.new/"],
+div[class*="bolt"],
+iframe[src*="bolt"],
+[href*="bolt.new"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 @layer components {
   .glass {
     background: rgba(20, 27, 43, 0.55);

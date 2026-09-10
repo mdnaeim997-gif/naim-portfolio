@@ -1,0 +1,3 @@
+[functions.sync-behance]
+verify_jwt = false
+entrypoint = "./functions/sync-behance/index.ts"
