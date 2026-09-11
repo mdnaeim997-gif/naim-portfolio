@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, ArrowUpRight } from 'lucide-react';
-import { supabase, type SiteSettings, type Project } from '../lib/supabase';
+import { ExternalLink } from 'lucide-react';
+import { supabase, type SiteSettings, type Project, type ProjectImage } from '../lib/supabase';
 import { type Lang, type Translation, translations, getStoredLang, subscribeLang } from '../lib/i18n';
 import { BehanceIcon } from '../lib/icons';
+import { BehanceCard } from './BehanceCard';
 
 const DEFAULT_BEHANCE_URL = 'https://www.behance.net/mdnaeim26';
 
@@ -10,6 +11,7 @@ export function BehanceShowcase() {
   const [lang, setLang] = useState<Lang>(getStoredLang());
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [allImages, setAllImages] = useState<Record<string, ProjectImage[]>>({});
 
   useEffect(() => {
     const unsub = subscribeLang((l) => setLang(l));
@@ -20,8 +22,27 @@ export function BehanceShowcase() {
     supabase.from('site_settings').select('*').maybeSingle().then(({ data }) => {
       if (data) setSettings(data);
     });
-    supabase.from('projects').select('*').eq('source', 'behance').order('created_at', { ascending: false })
-      .then(({ data }) => { if (data) setProjects(data); });
+    (async () => {
+      const { data: projs } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('source', 'behance')
+        .order('created_at', { ascending: false });
+      if (projs) {
+        setProjects(projs);
+        // Load images for each Behance project
+        const imgMap: Record<string, ProjectImage[]> = {};
+        for (const p of projs) {
+          const { data: imgs } = await supabase
+            .from('project_images')
+            .select('*')
+            .eq('project_id', p.id)
+            .order('sort_order', { ascending: true });
+          imgMap[p.id] = imgs || [];
+        }
+        setAllImages(imgMap);
+      }
+    })();
   }, []);
 
   const t: Translation = translations[lang];
@@ -41,26 +62,25 @@ export function BehanceShowcase() {
         </a>
       </div>
 
-      {/* Behance-synced projects from database */}
-      {projects.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      {/* Behance-synced project cards with lightbox */}
+      {projects.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {projects.map((p) => (
-            <a key={p.id} href={p.behance_url || behanceUrl} target="_blank" rel="noopener noreferrer"
-              className="group glass rounded-xl overflow-hidden hover:border-[#1769FF]/40 transition-all hover:-translate-y-1">
-              <div className="aspect-[16/10] overflow-hidden">
-                <img src={p.cover_url} alt={p.title} loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              </div>
-              <div className="p-3 flex items-center justify-between">
-                <span className="text-sm font-medium text-white truncate">{p.title}</span>
-                <ArrowUpRight className="w-4 h-4 text-[#1769FF] shrink-0" />
-              </div>
-            </a>
+            <BehanceCard key={p.id} project={p} images={allImages[p.id] || []} />
           ))}
+        </div>
+      ) : (
+        <div className="glass rounded-2xl p-8 text-center mb-6 border border-[#1769FF]/20">
+          <BehanceIcon className="w-10 h-10 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 mb-2">
+            {lang === 'bn'
+              ? 'বিহ্যান্স প্রজেক্ট সিঙ্ক করা হচ্ছে... কিছুক্ষণ পরে আবার দেখুন বা "Sync Behance" বাটনে ক্লিক করুন।'
+              : 'Syncing Behance projects... Check back shortly or click "Sync Behance" above.'}
+          </p>
         </div>
       )}
 
-      {/* Behance profile card — since Behance blocks direct iframe embedding */}
+      {/* Explore More on Behance banner */}
       <div className="glass rounded-2xl overflow-hidden border border-[#1769FF]/20">
         <div className="bg-[#1769FF] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -70,21 +90,13 @@ export function BehanceShowcase() {
               <p className="text-blue-100 text-xs">Behance Portfolio</p>
             </div>
           </div>
-          <a href={behanceUrl} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-[#1769FF] text-xs font-bold hover:scale-105 transition-transform">
-            {t.work.viewProfile} <ExternalLink className="w-3.5 h-3.5" />
-          </a>
         </div>
         <div className="p-6 text-center">
-          <p className="text-sm text-slate-400 mb-4">
-            {lang === 'bn'
-              ? 'আমার সমস্ত বিহ্যান্স প্রজেক্ট দেখতে নিচের বাটনে ক্লিক করুন।'
-              : 'Click below to view all my Behance projects in full resolution.'}
-          </p>
           <a href={behanceUrl} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#1769FF] text-white text-sm font-bold hover:scale-105 transition-transform glow-cyan">
             <BehanceIcon className="w-5 h-5" />
-            {t.work.viewProfile}
+            {lang === 'bn' ? 'বিহ্যান্সে আরও দেখুন' : 'Explore More on Behance'}
+            <ExternalLink className="w-4 h-4" />
           </a>
         </div>
       </div>
