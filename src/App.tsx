@@ -6,23 +6,21 @@ import { BehanceShowcase } from './components/BehanceShowcase';
 import { Footer } from './components/Footer';
 import { WhatsAppWidget } from './components/WhatsAppWidget';
 import { supabase, type Project, type BehanceProject } from './lib/supabase';
-import { Lock, Plus, LogOut, X, Upload, Loader2, Globe, Youtube } from 'lucide-react';
+import { Plus, X, Upload, Loader2, Globe, Settings } from 'lucide-react';
 
 export default function App() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [projects, setProjects] = useState<Project[]>([]);
   const [behanceProjects, setBehanceProjects] = useState<BehanceProject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState(false);
-  const [language, setLanguage] = useState<'BN' | 'EN'>('EN');
+  const [isAdmin] = useState(true);
+  const [language, setLanguage] = useState<'BN' | 'EN'>('BN');
 
-  const [contactEmail] = useState('contact@naeimvisual.com');
-  const [contactPhone] = useState('+880123456789');
+  const [contactEmail, setContactEmail] = useState('contact@naeimvisual.com');
+  const [contactPhone, setContactPhone] = useState('+880123456789');
 
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const [title, setTitle] = useState('');
@@ -33,13 +31,7 @@ export default function App() {
   const [detailImages, setDetailImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  const youtubeChannelUrl = "https://www.youtube.com/@MdNaeim-u8x";
-
   useEffect(() => {
-    const savedAdmin = localStorage.getItem('isAdmin');
-    if (savedAdmin === 'true') {
-      setIsAdmin(true);
-    }
     fetchData();
   }, []);
 
@@ -63,24 +55,6 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'admin123' || password === 'naim2026') {
-      setIsAdmin(true);
-      localStorage.setItem('isAdmin', 'true');
-      setShowLoginModal(false);
-      setPassword('');
-      setLoginError(false);
-    } else {
-      setLoginError(true);
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAdmin(false);
-    localStorage.removeItem('isAdmin');
   };
 
   const getAutoThumbnail = (url: string) => {
@@ -120,7 +94,7 @@ export default function App() {
       }
     } catch (error) {
       console.error(error);
-      alert('ফাইল আপলোড করতে সমস্যা হয়েছে!');
+      alert(language === 'BN' ? 'ফাইল আপলোড ব্যর্থ হয়েছে!' : 'File upload failed!');
     } finally {
       setUploading(false);
     }
@@ -131,23 +105,34 @@ export default function App() {
     setUploading(true);
 
     let finalCoverUrl = coverUrl;
-    if (!finalCoverUrl && projectUrl) {
-      finalCoverUrl = getAutoThumbnail(projectUrl);
+    if (category === 'Video Editing' && projectUrl) {
+      const autoThumb = getAutoThumbnail(projectUrl);
+      if (autoThumb) finalCoverUrl = autoThumb;
     }
 
     const projectData = {
       title,
       category,
-      cover_url: finalCoverUrl || 'https://img.youtube.com/vi/default/hqdefault.jpg',
+      cover_url: finalCoverUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop',
       project_url: projectUrl || null,
       description: description || null,
       detail_images: detailImages
     };
 
-    if (editingProject) {
-      await supabase.from('projects').update(projectData).eq('id', editingProject.id);
+    if (category === 'Behance' || (projectUrl && projectUrl.includes('behance.net'))) {
+      const behanceData = {
+        title,
+        cover_url: finalCoverUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop',
+        behance_url: projectUrl,
+        category: category
+      };
+      await supabase.from('behance_projects').insert([behanceData]);
     } else {
-      await supabase.from('projects').insert([projectData]);
+      if (editingProject) {
+        await supabase.from('projects').update(projectData).eq('id', editingProject.id);
+      } else {
+        await supabase.from('projects').insert([projectData]);
+      }
     }
 
     setUploading(false);
@@ -176,46 +161,29 @@ export default function App() {
           </h1>
 
           <div className="flex items-center gap-3">
-            {/* Youtube Channel Social Icon */}
-            <a
-              href={youtubeChannelUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 text-slate-400 hover:text-red-500 transition-colors bg-slate-800 rounded-full flex items-center justify-center"
-              title="Visit YouTube Channel"
-            >
-              <Youtube className="w-5 h-5 text-red-500 fill-current" />
-            </a>
-
             <button 
               onClick={() => setLanguage(language === 'EN' ? 'BN' : 'EN')}
-              className="flex items-center gap-1 text-xs bg-slate-800 px-3 py-1.5 rounded-full hover:bg-slate-700 transition"
+              className="flex items-center gap-1.5 text-xs bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-bold px-3 py-1.5 rounded-full hover:bg-cyan-500/20 transition"
             >
-              <Globe className="w-3.5 h-3.5 text-cyan-400" />
+              <Globe className="w-3.5 h-3.5" />
               <span>{language === 'EN' ? 'বাংলা' : 'English'}</span>
             </button>
 
-            {isAdmin ? (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { resetForm(); setShowProjectModal(true); }}
-                  className="flex items-center gap-1 bg-cyan-500 text-slate-950 font-bold px-3 py-1.5 rounded-lg hover:bg-cyan-400 text-sm"
-                >
-                  <Plus className="w-4 h-4" /> Add Project
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="p-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30"
-                  title="Logout Admin"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => setShowLoginModal(true)} className="p-2 text-slate-400 hover:text-white">
-                <Lock className="w-4 h-4" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { resetForm(); setShowProjectModal(true); }}
+                className="flex items-center gap-1 bg-cyan-500 text-slate-950 font-bold px-3 py-1.5 rounded-lg hover:bg-cyan-400 text-sm shadow-md transition"
+              >
+                <Plus className="w-4 h-4" /> {language === 'BN' ? 'প্রজেক্ট যোগ করুন' : 'Add Project'}
               </button>
-            )}
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                className="p-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition"
+                title={language === 'BN' ? 'সেটিংস' : 'Settings'}
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -224,7 +192,7 @@ export default function App() {
         <Hero language={language} />
 
         <div className="max-w-7xl mx-auto px-4 my-8">
-          <FilterTabs activeCategory={activeCategory} onSelectCategory={setActiveCategory} />
+          <FilterTabs activeCategory={activeCategory} onSelectCategory={setActiveCategory} language={language} />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 pb-16">
@@ -232,6 +200,7 @@ export default function App() {
             projects={projects} 
             activeCategory={activeCategory}
             isAdmin={isAdmin}
+            language={language}
             onEdit={(p) => { 
               setEditingProject(p); 
               setTitle(p.title);
@@ -243,7 +212,7 @@ export default function App() {
               setShowProjectModal(true); 
             }}
             onDelete={async (id) => {
-              if (confirm('প্রজেক্টটি মুছে ফেলতে চান?')) {
+              if (confirm(language === 'BN' ? 'প্রজেক্টটি মুছে ফেলতে চান?' : 'Delete this project?')) {
                 await supabase.from('projects').delete().eq('id', id);
                 fetchData();
               }
@@ -252,36 +221,49 @@ export default function App() {
 
           {(activeCategory === 'All' || activeCategory === 'Behance') && (
             <div className="mt-12">
-              <BehanceShowcase projects={behanceProjects} />
+              <BehanceShowcase projects={behanceProjects} language={language} />
             </div>
           )}
         </div>
       </main>
 
-      <Footer email={contactEmail} phone={contactPhone} />
+      <Footer email={contactEmail} phone={contactPhone} language={language} />
       <WhatsAppWidget phone={contactPhone} />
 
-      {/* Admin Login Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative">
-            <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-slate-400">
+            <button onClick={() => setShowSettingsModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-4">Admin Access</h2>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <input
-                type="password"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
-              />
-              {loginError && <p className="text-red-400 text-xs">ভুল পাসওয়ার্ড!</p>}
-              <button type="submit" className="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded-xl">
-                Login
+            <h2 className="text-xl font-bold mb-4">{language === 'BN' ? 'পোর্টফোলিও সেটিংস' : 'Portfolio Settings'}</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ইমেইল এড্রেস' : 'Email Address'}</label>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ফোন / হোয়াটসঅ্যাপ' : 'Phone / WhatsApp'}</label>
+                <input
+                  type="text"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
+                />
+              </div>
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                className="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded-xl hover:bg-cyan-400 transition"
+              >
+                {language === 'BN' ? 'সেভ করুন' : 'Save Settings'}
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
@@ -290,30 +272,35 @@ export default function App() {
       {showProjectModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-lg relative my-8">
-            <button onClick={() => setShowProjectModal(false)} className="absolute top-4 right-4 text-slate-400">
+            <button onClick={() => setShowProjectModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-4">{editingProject ? 'Edit Project' : 'Add New Project'}</h2>
+            <h2 className="text-xl font-bold mb-4">
+              {editingProject 
+                ? (language === 'BN' ? 'প্রজেক্ট এডিট করুন' : 'Edit Project') 
+                : (language === 'BN' ? 'নতুন প্রজেক্ট যোগ করুন' : 'Add New Project')}
+            </h2>
             
             <form onSubmit={handleCreateOrUpdateProject} className="space-y-4">
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">ক্যাটাগরি সিলেক্ট করুন</label>
+                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ক্যাটাগরি সিলেক্ট করুন' : 'Select Category'}</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
                 >
-                  <option value="Video Editing">Video Editing</option>
-                  <option value="Graphic Design">Graphic Design</option>
-                  <option value="Meta Marketing">Meta Marketing</option>
+                  <option value="Video Editing">{language === 'BN' ? 'ভিডিও এডিটিং' : 'Video Editing'}</option>
+                  <option value="Graphic Design">{language === 'BN' ? 'গ্রাফিক ডিজাইন' : 'Graphic Design'}</option>
+                  <option value="Meta Marketing">{language === 'BN' ? 'ডিজিটাল মার্কেটিং' : 'Meta Marketing'}</option>
+                  <option value="Behance">{language === 'BN' ? 'বিহ্যান্স (Behance)' : 'Behance'}</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Title (শিরোনাম)</label>
+                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'টাইটেল (বাধ্যতামূলক)' : 'Project Title (Required)'}</label>
                 <input
                   type="text"
-                  placeholder="প্রজেক্ট টাইটেল"
+                  placeholder={language === 'BN' ? 'প্রজেক্টের টাইটেল দিন' : 'Enter project title'}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
@@ -323,23 +310,53 @@ export default function App() {
 
               {category === 'Video Editing' ? (
                 <div>
-                  <label className="text-xs text-slate-400 mb-1 block">Video Link (YouTube / Facebook)</label>
+                  <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ভিডিও লিংক (YouTube / Facebook)' : 'Video URL'}</label>
                   <input
                     type="url"
-                    placeholder="https://youtube.com/watch?v=... অথবা https://youtu.be/..."
+                    placeholder="https://www.youtube.com/watch?v=... বা https://fb.watch/..."
                     value={projectUrl}
                     onChange={(e) => setProjectUrl(e.target.value)}
                     required
                     className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
                   />
                   <p className="text-[10px] text-cyan-400 mt-1">
-                    * ভিডিওর থাম্বনেইল অরিজিনাল লিংক থেকে অটোমেটিক শো করবে।
+                    {language === 'BN' ? '* ইউটিউব বা ফেসবুক লিংক দিলেই ভিডিও এবং থাম্বনেইল অটোমেটিক লোড হবে।' : '* Thumbnail will load automatically.'}
                   </p>
+                </div>
+              ) : category === 'Behance' ? (
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'Behance প্রজেক্ট লিংক' : 'Behance Project URL'}</label>
+                  <input
+                    type="url"
+                    placeholder="https://www.behance.net/gallery/..."
+                    value={projectUrl}
+                    onChange={(e) => setProjectUrl(e.target.value)}
+                    required
+                    className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
+                  />
+                  
+                  <div className="mt-3">
+                    <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'Behance কভার ছবি আপলোড করুন' : 'Behance Cover Image'}</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, true)}
+                      className="hidden"
+                      id="behance-cover-input"
+                    />
+                    <label
+                      htmlFor="behance-cover-input"
+                      className="w-full bg-slate-800 border border-dashed border-slate-600 hover:border-cyan-500 px-4 py-2.5 rounded-xl cursor-pointer text-center text-xs text-slate-300 flex items-center justify-center gap-2"
+                    >
+                      <Upload className="w-4 h-4 text-cyan-400" />
+                      {coverUrl ? (language === 'BN' ? 'কভার ছবি নির্বাচিত হয়েছে!' : 'Cover Image Selected!') : (language === 'BN' ? 'গ্যালারি থেকে ছবি বাছুন' : 'Choose Cover')}
+                    </label>
+                  </div>
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">মূল থাম্বনেইল ছবি (গ্যালারি থেকে)</label>
+                    <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'গ্যালারি/মোবাইল/পিসি থেকে থাম্বনেইল কভার ফটো' : 'Cover Image'}</label>
                     <div className="flex gap-2 items-center">
                       <input
                         type="file"
@@ -353,7 +370,7 @@ export default function App() {
                         className="flex-1 bg-slate-800 border border-dashed border-slate-600 hover:border-cyan-500 px-4 py-3 rounded-xl cursor-pointer text-center text-sm text-slate-300 flex items-center justify-center gap-2"
                       >
                         <Upload className="w-4 h-4 text-cyan-400" />
-                        {coverUrl ? 'থাম্বনেইল আপলোড হয়েছে!' : 'গ্যালারি থেকে থাম্বনেইল সিলেক্ট করুন'}
+                        {coverUrl ? (language === 'BN' ? 'ছবি আপলোড সম্পন্ন!' : 'Image Uploaded!') : (language === 'BN' ? 'ছবি সিলেক্ট করুন' : 'Choose Cover')}
                       </label>
                     </div>
                     {coverUrl && (
@@ -362,7 +379,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">অন্যান্য ছবিসমূহ (গ্যালারি থেকে একাধিক ছবি)</label>
+                    <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'প্রজেক্টের অন্যান্য ছবিসমূহ' : 'Gallery Images'}</label>
                     <input
                       type="file"
                       accept="image/*"
@@ -375,7 +392,7 @@ export default function App() {
                       htmlFor="detail-files-input"
                       className="w-full bg-slate-800 border border-dashed border-slate-600 hover:border-cyan-500 px-4 py-2 rounded-xl cursor-pointer text-center text-sm text-slate-300 flex items-center justify-center gap-2"
                     >
-                      <Plus className="w-4 h-4 text-cyan-400" /> + গ্যালারি থেকে আরও ছবি আপলোড করুন
+                      <Plus className="w-4 h-4 text-cyan-400" /> {language === 'BN' ? '+ আরও ছবি সিলেক্ট করুন' : '+ Add More Images'}
                     </label>
 
                     {detailImages.length > 0 && (
@@ -399,9 +416,9 @@ export default function App() {
               )}
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Description (অপশনাল)</label>
+                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'বিবরণ (অপশনাল)' : 'Description (Optional)'}</label>
                 <textarea
-                  placeholder="প্রজেক্টের বিবরণ লিখুন..."
+                  placeholder={language === 'BN' ? 'প্রজেক্ট সম্পর্কে কিছু লিখুন...' : 'Write description...'}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none h-20"
@@ -414,7 +431,7 @@ export default function App() {
                 className="w-full bg-cyan-500 text-slate-950 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-400 transition"
               >
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {editingProject ? 'Update Project' : 'Publish Project'}
+                {editingProject ? (language === 'BN' ? 'আপডেট করুন' : 'Update Project') : (language === 'BN' ? 'পাবলিশ করুন' : 'Publish Project')}
               </button>
             </form>
           </div>
