@@ -1,4 +1,3 @@
-@@ -1,591 +1,132 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit, Trash2, Mail, Phone, Globe, Heart, MessageSquare, 
