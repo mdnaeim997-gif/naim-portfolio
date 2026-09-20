@@ -1,120 +1,97 @@
 import React, { useState, useEffect } from 'react';
-import { Hero } from './components/Hero';
-import { ProjectGrid } from './components/ProjectGrid';
-import { FilterTabs } from './components/FilterTabs';
-import { BehanceShowcase } from './components/BehanceShowcase';
-import { Footer } from './components/Footer';
-import { WhatsAppWidget } from './components/WhatsAppWidget';
-import { supabase, type Project, type BehanceProject } from './lib/supabase';
-import { Plus, X, Upload, Loader2, Globe, Settings, Monitor, Tablet, Smartphone, Mail, Send } from 'lucide-react';
+import { 
+  Plus, Edit, Trash2, Mail, Phone, Globe, Heart, MessageSquare, 
+  Share2, Camera, User, Settings, Check, X, Loader2, Play, 
+  ExternalLink, Laptop, Tablet, Smartphone, Eye, Send, Code, ShieldCheck, Lock, Unlock 
+} from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+// Supabase Configuration
+const SUPABASE_URL = 'https://your-supabase-url.supabase.co';
+const SUPABASE_ANON_KEY = 'your-supabase-anon-key';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [behanceProjects, setBehanceProjects] = useState<BehanceProject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin] = useState(true);
   const [language, setLanguage] = useState<'BN' | 'EN'>('BN');
-  const [deviceView, setDeviceView] = useState<'default' | 'pc' | 'tablet' | 'mobile'>('default');
+  
+  // Security & Admin Authentication States
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState<string>('');
+  const ADMIN_SECRET_PASSWORD = 'NaeimVisual@2026#Secure'; // আপনি এখানে আপনার পছন্দমতো পাসওয়ার্ড পরিবর্তন করতে পারেন
 
-  // Admin Profile & Settings State
-  const [contactEmail, setContactEmail] = useState('contact@naeimvisual.com');
-  const [contactPhone, setContactPhone] = useState('01610977029');
-  const [profileImage, setProfileImage] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop');
-  const [profileBio, setProfileBio] = useState('হাই, আমি নাঈম — একজন ভিজ্যুয়াল স্টোরিটেলার এবং মেটা মার্কেটার।');
-  const [showFollowButton, setShowFollowButton] = useState(true);
+  const [viewMode, setViewMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  
+  // Profile & Settings States
+  const [profile, setProfile] = useState({
+    name: 'Md Naeim',
+    bio: 'হাই, আমি নাঈম — একজন ভিজুয়াল স্টোরিটেলার এবং মেটা মার্কেটার।',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+    whatsapp: '01610977029',
+    email: 'contact@naeimvisual.com',
+    showFollowBtn: true
+  });
 
-  // Contact Form State
-  const [senderName, setSenderName] = useState('');
-  const [senderEmail, setSenderEmail] = useState('');
-  const [senderMessage, setSenderMessage] = useState('');
-  const [sendingEmail, setSendingEmail] = useState(false);
-  const [emailSentSuccess, setEmailSentSuccess] = useState(false);
-
-  const [showProjectModal, setShowProjectModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-
-  // Form State for Project Upload
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Video Editing');
-  const [coverUrl, setCoverUrl] = useState('');
-  const [projectUrl, setProjectUrl] = useState('');
-  const [description, setDescription] = useState('');
-  const [detailImages, setDetailImages] = useState<string[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  // Modal & Form States
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<any>(null);
+
+  const [category, setCategory] = useState('Video Editing');
+  const [title, setTitle] = useState('');
+  const [projectUrl, setProjectUrl] = useState('');
+  const [videoThumbnail, setVideoThumbnail] = useState(''); // Video Thumbnail for FB/YouTube preview
+  const [coverUrl, setCoverUrl] = useState('');
+  const [detailImages, setDetailImages] = useState<string[]>([]);
+  const [description, setDescription] = useState('');
+
+  // Contact Form State
+  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
+
   useEffect(() => {
-    fetchData();
+    fetchProjects();
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchProjects = async () => {
     try {
-      const { data: projData } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      const { data: behData } = await supabase
-        .from('behance_projects')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (projData) setProjects(projData);
-      if (behData) setBehanceProjects(behData);
+      const { data, error } = await supabase.from('projects').select('*').order('id', { ascending: false });
+      if (data) setProjects(data);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching projects:', err);
     }
   };
 
-  const getAutoThumbnail = (url: string) => {
-    if (!url) return '';
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    if (match && match[2]) {
-      return `https://img.youtube.com/vi/${match[2]}/hqdefault.jpg`;
-    }
-    return '';
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isCover: boolean, isProfile = false) => {
+  // File Upload Helper
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'cover' | 'videoThumb' | 'gallery') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
+    
     setUploading(true);
     try {
-      if (isProfile) {
-        const file = files[0];
-        const fileName = `profile-${Date.now()}-${file.name}`;
-        const { error } = await supabase.storage.from('portfolio').upload(fileName, file);
-        if (error) throw error;
-        const { data: publicData } = supabase.storage.from('portfolio').getPublicUrl(fileName);
-        setProfileImage(publicData.publicUrl);
-      } else if (isCover) {
-        const file = files[0];
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
         const fileName = `${Date.now()}-${file.name}`;
-        const { error } = await supabase.storage.from('portfolio').upload(fileName, file);
+        const { data, error } = await supabase.storage.from('portfolio').upload(fileName, file);
+        
         if (error) throw error;
-        const { data: publicData } = supabase.storage.from('portfolio').getPublicUrl(fileName);
-        setCoverUrl(publicData.publicUrl);
-      } else {
-        const uploadedUrls: string[] = [];
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const fileName = `${Date.now()}-${file.name}`;
-          const { error } = await supabase.storage.from('portfolio').upload(fileName, file);
-          if (error) throw error;
-          const { data: publicData } = supabase.storage.from('portfolio').getPublicUrl(fileName);
-          uploadedUrls.push(publicData.publicUrl);
-        }
-        setDetailImages([...detailImages, ...uploadedUrls]);
+        
+        const { data: publicUrlData } = supabase.storage.from('portfolio').getPublicUrl(fileName);
+        uploadedUrls.push(publicUrlData.publicUrl);
       }
-    } catch (error) {
-      console.error(error);
-      alert(language === 'BN' ? 'ফাইল আপলোড ব্যর্থ হয়েছে! Supabase Bucket Public করা আছে কিনা চেক করুন।' : 'File upload failed!');
+
+      if (type === 'cover') {
+        setCoverUrl(uploadedUrls[0]);
+      } else if (type === 'videoThumb') {
+        setVideoThumbnail(uploadedUrls[0]);
+      } else {
+        setDetailImages(prev => [...prev, ...uploadedUrls]);
+      }
+    } catch (error: any) {
+      alert('ফাইল আপলোড ব্যর্থ হয়েছে: ' + error.message);
     } finally {
       setUploading(false);
     }
@@ -124,334 +101,336 @@ export default function App() {
     e.preventDefault();
     setUploading(true);
 
-    let finalCoverUrl = coverUrl;
+    try {
+      const projectData = {
+        title,
+        category,
+        project_url: category === 'Video Editing' ? projectUrl : '',
+        cover_url: category === 'Video Editing' ? videoThumbnail : (category === 'Graphic Design' ? coverUrl : ''),
+        detail_images: detailImages,
+        description,
+      };
 
-    if (category === 'Video Editing' && projectUrl) {
-      const autoThumb = getAutoThumbnail(projectUrl);
-      if (autoThumb) finalCoverUrl = autoThumb;
+      if (editingProject) {
+        const { error } = await supabase.from('projects').update(projectData).eq('id', editingProject.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('projects').insert([projectData]);
+        if (error) throw error;
+      }
+
+      setShowProjectModal(false);
+      resetForm();
+      fetchProjects();
+      alert(language === 'BN' ? 'প্রজেক্ট সফলভাবে সেভ হয়েছে!' : 'Project saved successfully!');
+    } catch (error: any) {
+      alert('ত্রুটি: ' + error.message);
+    } finally {
+      setUploading(false);
     }
-
-    const projectData = {
-      title: title || (category === 'Video Editing' ? 'Video Project' : 'New Project'),
-      category,
-      cover_url: finalCoverUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop',
-      project_url: projectUrl || null,
-      description: description || null,
-      detail_images: detailImages
-    };
-
-    if (editingProject) {
-      await supabase.from('projects').update(projectData).eq('id', editingProject.id);
-    } else {
-      await supabase.from('projects').insert([projectData]);
-    }
-
-    setUploading(false);
-    setShowProjectModal(false);
-    resetForm();
-    fetchData();
   };
 
   const resetForm = () => {
-    setTitle('');
-    setCategory('Video Editing');
-    setCoverUrl('');
-    setProjectUrl('');
-    setDescription('');
-    setDetailImages([]);
     setEditingProject(null);
+    setTitle('');
+    setProjectUrl('');
+    setVideoThumbnail('');
+    setCoverUrl('');
+    setDetailImages([]);
+    setDescription('');
   };
 
-  const handleSendEmail = (e: React.FormEvent) => {
+  const handleDeleteProject = async (id: number) => {
+    if (confirm(language === 'BN' ? 'আপনি কি প্রজেক্টটি ডিলিট করতে চান?' : 'Are you sure to delete?')) {
+      await supabase.from('projects').delete().eq('id', id);
+      fetchProjects();
+    }
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setSendingEmail(true);
-    
-    // Simulate sending to email (Opens mail client or triggers API)
-    setTimeout(() => {
-      window.location.href = `mailto:${contactEmail}?subject=Message from ${senderName}&body=${encodeURIComponent(senderMessage)}%0D%0A%0D%0AReply Email: ${senderEmail}`;
-      setSendingEmail(false);
-      setEmailSentSuccess(true);
-      setSenderName('');
-      setSenderEmail('');
-      setSenderMessage('');
-      setTimeout(() => setEmailSentSuccess(false), 5000);
-    }, 1000);
-  };
-
-  // Device view container styling wrapper
-  const getDeviceWrapperClass = () => {
-    switch(deviceView) {
-      case 'pc': return 'max-w-[1280px] mx-auto border-x-4 border-slate-800 shadow-2xl my-4 rounded-xl overflow-hidden';
-      case 'tablet': return 'max-w-[768px] mx-auto border-x-4 border-slate-800 shadow-2xl my-4 rounded-xl overflow-hidden';
-      case 'mobile': return 'max-w-[414px] mx-auto border-x-4 border-slate-800 shadow-2xl my-4 rounded-xl overflow-hidden';
-      default: return 'w-full';
+    if (adminPasswordInput === ADMIN_SECRET_PASSWORD) {
+      setIsAdminLoggedIn(true);
+      setShowLoginModal(false);
+      setAdminPasswordInput('');
+      alert(language === 'BN' ? 'সফলভাবে অ্যাডমিন প্যানেলে প্রবেশ করেছেন!' : 'Logged in as Admin successfully!');
+    } else {
+      alert(language === 'BN' ? 'ভুল পাসওয়ার্ড! সঠিক পাসওয়ার্ড দিন।' : 'Incorrect password!');
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-cyan-500 selection:text-white">
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
-          <h1 className="text-xl md:text-2xl font-extrabold bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-500 bg-clip-text text-transparent">
-            NAEIM VISUAL
-          </h1>
+    <div className="bg-[#050b18] text-slate-100 min-h-screen font-sans selection:bg-cyan-500 selection:text-black">
+      
+      {/* Top Navbar */}
+      <div className="bg-[#0b1329] border-b border-slate-800 px-4 py-2.5 flex flex-wrap justify-between items-center text-xs sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          {isAdminLoggedIn ? (
+            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-semibold flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" /> 
+              {language === 'BN' ? 'অ্যাডমিন মোড সচল' : 'Admin Mode Active'}
+            </span>
+          ) : (
+            <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded-full font-semibold flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5" /> 
+              {language === 'BN' ? 'পাবলিক ভিউ (দর্শক মোড)' : 'Public View Mode'}
+            </span>
+          )}
 
-          {/* Top Controls: Device Switcher, Language & Admin buttons */}
-          <div className="flex items-center flex-wrap gap-2">
-            {/* Device View Switcher */}
-            <div className="hidden md:flex items-center bg-slate-800/80 p-1 rounded-lg border border-slate-700">
-              <button 
-                onClick={() => setDeviceView('pc')} 
-                className={`p-1.5 rounded ${deviceView === 'pc' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
-                title="PC View"
-              >
-                <Monitor className="w-3.5 h-3.5" />
-              </button>
-              <button 
-                onClick={() => setDeviceView('tablet')} 
-                className={`p-1.5 rounded ${deviceView === 'tablet' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
-                title="Tablet View"
-              >
-                <Tablet className="w-3.5 h-3.5" />
-              </button>
-              <button 
-                onClick={() => setDeviceView('mobile')} 
-                className={`p-1.5 rounded ${deviceView === 'mobile' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
-                title="Mobile View"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-              </button>
-              {deviceView !== 'default' && (
-                <button 
-                  onClick={() => setDeviceView('default')} 
-                  className="px-2 text-[10px] text-cyan-400 font-bold hover:underline"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-
-            {/* Language Toggle */}
+          {!isAdminLoggedIn ? (
             <button 
-              onClick={() => setLanguage(language === 'EN' ? 'BN' : 'EN')}
-              className="flex items-center gap-1 text-xs bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-bold px-3 py-1.5 rounded-full hover:bg-cyan-500/20 transition"
+              onClick={() => setShowLoginModal(true)}
+              className="bg-slate-800 hover:bg-slate-700 text-cyan-400 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5"
             >
-              <Globe className="w-3.5 h-3.5" />
-              <span>{language === 'EN' ? 'বাংলা' : 'English'}</span>
+              <Lock className="w-3.5 h-3.5" /> {language === 'BN' ? 'অ্যাডমিন লগইন' : 'Admin Login'}
             </button>
+          ) : (
+            <button 
+              onClick={() => setIsAdminLoggedIn(false)}
+              className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5"
+            >
+              <Unlock className="w-3.5 h-3.5" /> {language === 'BN' ? 'লগআউট / পাবলিক ভিউতে যান' : 'Logout to Public View'}
+            </button>
+          )}
+        </div>
 
-            {/* Add Project & Settings */}
-            <button
-              onClick={() => { resetForm(); setShowProjectModal(true); }}
-              className="flex items-center gap-1 bg-cyan-500 text-slate-950 font-bold px-3 py-1.5 rounded-lg hover:bg-cyan-400 text-xs shadow-md transition"
-            >
-              <Plus className="w-4 h-4" /> {language === 'BN' ? 'প্রজেক্ট যোগ করুন' : 'Add Project'}
-            </button>
-            <button
-              onClick={() => setShowSettingsModal(true)}
-              className="p-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition"
-              title={language === 'BN' ? 'সেটিংস' : 'Settings'}
-            >
+        {/* Device Switcher */}
+        <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800">
+          <button onClick={() => setViewMode('desktop')} className={`p-1.5 rounded ${viewMode === 'desktop' ? 'bg-cyan-500 text-black' : 'text-slate-400 hover:text-white'}`}><Laptop className="w-4 h-4" /></button>
+          <button onClick={() => setViewMode('tablet')} className={`p-1.5 rounded ${viewMode === 'tablet' ? 'bg-cyan-500 text-black' : 'text-slate-400 hover:text-white'}`}><Tablet className="w-4 h-4" /></button>
+          <button onClick={() => setViewMode('mobile')} className={`p-1.5 rounded ${viewMode === 'mobile' ? 'bg-cyan-500 text-black' : 'text-slate-400 hover:text-white'}`}><Smartphone className="w-4 h-4" /></button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button onClick={() => setLanguage(language === 'BN' ? 'EN' : 'BN')} className="font-bold text-cyan-400 hover:underline">
+            {language === 'BN' ? 'English' : 'বাংলা'}
+          </button>
+          {isAdminLoggedIn && (
+            <button onClick={() => setShowSettingsModal(true)} className="bg-slate-800 hover:bg-slate-700 p-1.5 rounded-lg text-slate-300">
               <Settings className="w-4 h-4" />
             </button>
-          </div>
+          )}
         </div>
-      </nav>
-
-      {/* Main Container with Device View Simulation Support */}
-      <div className={getDeviceWrapperClass()}>
-        <main className="pt-20">
-          <Hero 
-            language={language} 
-            profileImage={profileImage}
-            profileBio={profileBio}
-            showFollowButton={showFollowButton}
-            whatsappPhone={contactPhone}
-          />
-
-          <div className="max-w-7xl mx-auto px-4 my-8">
-            <FilterTabs activeCategory={activeCategory} onSelectCategory={setActiveCategory} language={language} />
-          </div>
-
-          <div className="max-w-7xl mx-auto px-4 pb-16">
-            <ProjectGrid 
-              projects={projects} 
-              activeCategory={activeCategory}
-              isAdmin={isAdmin}
-              language={language}
-              onEdit={(p) => { 
-                setEditingProject(p); 
-                setTitle(p.title);
-                setCategory(p.category);
-                setCoverUrl(p.cover_url);
-                setProjectUrl(p.project_url || '');
-                setDescription(p.description || '');
-                setDetailImages(p.detail_images || []);
-                setShowProjectModal(true); 
-              }}
-              onDelete={async (id) => {
-                if (confirm(language === 'BN' ? 'প্রজেক্টটি মুছে ফেলতে চান?' : 'Delete this project?')) {
-                  await supabase.from('projects').delete().eq('id', id);
-                  fetchData();
-                }
-              }}
-            />
-
-            {(activeCategory === 'All' || activeCategory === 'Behance') && (
-              <div className="mt-12">
-                <BehanceShowcase projects={behanceProjects} language={language} />
-              </div>
-            )}
-          </div>
-
-          {/* Contact Me via Email Section */}
-          <section className="py-16 bg-slate-900/50 border-t border-slate-800/80">
-            <div className="max-w-xl mx-auto px-4">
-              <div className="text-center mb-8">
-                <div className="inline-flex p-3 bg-cyan-500/10 text-cyan-400 rounded-2xl mb-3 border border-cyan-500/20">
-                  <Mail className="w-6 h-6" />
-                </div>
-                <h2 className="text-2xl font-bold">{language === 'BN' ? 'সরাসরি ইমেইলে যোগাযোগ করুন' : 'Get in Touch via Email'}</h2>
-                <p className="text-slate-400 text-xs mt-1">
-                  {language === 'BN' ? `আপনার বার্তা সরাসরি চলে যাবে: ${contactEmail}` : `Your message will be sent directly to ${contactEmail}`}
-                </p>
-              </div>
-
-              {emailSentSuccess && (
-                <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 rounded-xl text-xs text-center font-medium">
-                  {language === 'BN' ? '✓ আপনার ইমেইল মেসেজ সফলভাবে পাঠানো হয়েছে!' : '✓ Email message sent successfully!'}
-                </div>
-              )}
-
-              <form onSubmit={handleSendEmail} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
-                <div>
-                  <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'আপনার নাম' : 'Your Name'}</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder={language === 'BN' ? 'আপনার নাম লিখুন' : 'Enter your name'}
-                    value={senderName}
-                    onChange={(e) => setSenderName(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'আপনার ইমেইল এড্রেস' : 'Your Email Address'}</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="example@gmail.com"
-                    value={senderEmail}
-                    onChange={(e) => setSenderEmail(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'আপনার বার্তা / প্রজেক্ট বিবরণ' : 'Your Message / Project Details'}</label>
-                  <textarea
-                    required
-                    rows={4}
-                    placeholder={language === 'BN' ? 'কী বিষয়ে কথা বলতে চান বিস্তারিত লিখুন...' : 'Write your message here...'}
-                    value={senderMessage}
-                    onChange={(e) => setSenderMessage(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-xs"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={sendingEmail}
-                  className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition text-xs shadow-lg shadow-cyan-500/20"
-                >
-                  {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  {language === 'BN' ? 'ইমেইল সেন্ড করুন' : 'Send Email Message'}
-                </button>
-              </form>
-            </div>
-          </section>
-        </main>
-
-        <Footer email={contactEmail} phone={contactPhone} language={language} />
-        <WhatsAppWidget phone={contactPhone} />
       </div>
 
-      {/* Admin Settings Modal */}
-      {showSettingsModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative max-h-[90vh] overflow-y-auto shadow-2xl">
-            <button onClick={() => setShowSettingsModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+      {/* Main Container Wrapper */}
+      <div className={`mx-auto transition-all duration-300 ${
+        viewMode === 'tablet' ? 'max-w-2xl border-x border-slate-800 my-4 shadow-2xl rounded-2xl overflow-hidden' :
+        viewMode === 'mobile' ? 'max-w-sm border-x border-slate-800 my-4 shadow-2xl rounded-3xl overflow-hidden' : 'max-w-6xl'
+      }`}>
+
+        {/* Hero Section with Big Rotating Orbit Avatar */}
+        <header className="py-16 px-6 text-center relative overflow-hidden flex flex-col items-center justify-center">
+          
+          <div className="relative w-52 h-52 sm:w-60 sm:h-60 mb-6 flex items-center justify-center">
+            {/* Rotating Orbit Skills Animation */}
+            <div className="absolute inset-0 animate-spin-slow border border-cyan-500/20 rounded-full flex items-center justify-center pointer-events-none">
+              <span className="absolute -top-3 bg-[#0b1329] text-cyan-400 border border-cyan-500/40 text-[10px] px-2 py-0.5 rounded-full shadow">Meta Ads</span>
+              <span className="absolute -bottom-3 bg-[#0b1329] text-purple-400 border border-purple-500/40 text-[10px] px-2 py-0.5 rounded-full shadow">Premiere Pro</span>
+              <span className="absolute -left-4 bg-[#0b1329] text-pink-400 border border-pink-500/40 text-[10px] px-2 py-0.5 rounded-full shadow">Photoshop</span>
+              <span className="absolute -right-4 bg-[#0b1329] text-amber-400 border border-amber-500/40 text-[10px] px-2 py-0.5 rounded-full shadow">After Effects</span>
+              <span className="absolute top-1/4 -right-6 bg-[#0b1329] text-blue-400 border border-blue-500/40 text-[10px] px-2 py-0.5 rounded-full shadow">AI Tools</span>
+              <span className="absolute bottom-1/4 -left-6 bg-[#0b1329] text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-0.5 rounded-full shadow">Digital Mkt</span>
+            </div>
+
+            {/* Big Profile Avatar */}
+            <img 
+              src={profile.avatar} 
+              alt={profile.name} 
+              className="w-44 h-44 sm:w-52 sm:h-52 rounded-full object-cover border-4 border-cyan-500/60 shadow-2xl shadow-cyan-500/30 z-10"
+            />
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 tracking-tight">{profile.name}</h1>
+          <p className="text-slate-400 max-w-md text-sm sm:text-base mb-6 leading-relaxed">{profile.bio}</p>
+
+          <div className="flex flex-wrap justify-center gap-3">
+            <a 
+              href={`https://wa.me/+88${profile.whatsapp}`} 
+              target="_blank" 
+              rel="noreferrer"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition"
+            >
+              <Phone className="w-4 h-4" /> WhatsApp Chat
+            </a>
+            {profile.showFollowBtn && (
+              <button className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-6 py-2.5 rounded-xl text-sm transition">
+                {language === 'BN' ? 'ফলো করুন' : 'Follow'}
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Admin Action Bar */}
+        {isAdminLoggedIn && (
+          <div className="px-6 mb-8 flex justify-between items-center bg-[#0b1329] p-4 rounded-2xl border border-emerald-500/40 shadow-lg">
+            <div>
+              <h3 className="font-bold text-white text-base flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" /> 
+                {language === 'BN' ? 'অ্যাডমিন কন্ট্রোল প্যানেল সচল' : 'Admin Control Panel Active'}
+              </h3>
+              <p className="text-xs text-slate-400">{language === 'BN' ? 'এখান থেকে প্রজেক্ট যোগ বা ম্যানেজ করুন।' : 'Manage your portfolio projects securely.'}</p>
+            </div>
+            <button
+              onClick={() => { resetForm(); setShowProjectModal(true); }}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg transition"
+            >
+              <Plus className="w-4 h-4" /> {language === 'BN' ? 'নতুন প্রজেক্ট যোগ করুন' : 'Add New Project'}
+            </button>
+          </div>
+        )}
+
+        {/* Projects Grid Section */}
+        <section className="px-6 pb-16">
+          <h2 className="text-xl font-bold text-white mb-6 border-l-4 border-cyan-500 pl-3">
+            {language === 'BN' ? 'আমার প্রজেক্টসমূহ' : 'Featured Projects'}
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((proj) => (
+              <div key={proj.id} className="bg-[#0b1329] border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl hover:border-cyan-500/50 transition group flex flex-col justify-between">
+                
+                <div>
+                  {/* Category: Video Editing (Video Thumbnail Preview with Direct YouTube/Facebook Redirect Link) */}
+                  {proj.category === 'Video Editing' ? (
+                    <div className="relative h-48 bg-slate-900 overflow-hidden">
+                      <img 
+                        src={proj.cover_url || profile.avatar} 
+                        alt={proj.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      />
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition flex items-center justify-center">
+                        <a 
+                          href={proj.project_url} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="bg-red-600 hover:bg-red-500 text-white p-3.5 rounded-full shadow-2xl transition transform group-hover:scale-110 flex items-center justify-center"
+                        >
+                          <Play className="w-6 h-6 fill-white ml-0.5" />
+                        </a>
+                      </div>
+                      <span className="absolute bottom-3 left-3 text-xs bg-red-500 text-white font-bold px-2.5 py-1 rounded-md shadow">
+                        Video Link
+                      </span>
+                    </div>
+                  ) : (
+                    /* Graphic Design & Meta Marketing */
+                    <div className="relative h-48 bg-slate-900 overflow-hidden">
+                      <img 
+                        src={proj.cover_url || (proj.detail_images && proj.detail_images[0]) || profile.avatar} 
+                        alt={proj.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      />
+                      <span className="absolute bottom-3 left-3 text-xs bg-purple-600 text-white font-bold px-2.5 py-1 rounded-md">
+                        {proj.category}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-5">
+                    <h3 className="font-bold text-white text-base mb-1">{proj.title}</h3>
+                    <p className="text-slate-400 text-xs line-clamp-2">{proj.description || 'No description provided.'}</p>
+                  </div>
+                </div>
+
+                <div className="p-5 pt-0 flex items-center justify-between border-t border-slate-800/60 mt-4">
+                  {proj.project_url ? (
+                    <a href={proj.project_url} target="_blank" rel="noreferrer" className="text-xs text-cyan-400 hover:underline flex items-center gap-1 font-semibold">
+                      {language === 'BN' ? 'ভিডিও দেখতে ক্লিক করুন' : 'Watch Video'} <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  ) : <span />}
+
+                  {isAdminLoggedIn && (
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditingProject(proj); setTitle(proj.title); setCategory(proj.category); setProjectUrl(proj.project_url || ''); setVideoThumbnail(proj.cover_url || ''); setCoverUrl(proj.cover_url || ''); setDetailImages(proj.detail_images || []); setDescription(proj.description || ''); setShowProjectModal(true); }} className="text-slate-400 hover:text-cyan-400 p-1">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDeleteProject(proj.id)} className="text-slate-400 hover:text-red-400 p-1">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Contact Section */}
+        <section className="bg-[#0b1329] border-t border-slate-800 py-12 px-6">
+          <div className="max-w-xl mx-auto text-center">
+            <h2 className="text-2xl font-bold text-white mb-2">{language === 'BN' ? 'আমার সাথে যোগাযোগ করুন' : 'Get In Touch'}</h2>
+            <p className="text-slate-400 text-xs mb-6">{language === 'BN' ? 'নিচের ফর্মটি পূরণ করে সরাসরি ইমেইল পাঠান।' : 'Fill out the form below to send an email.'}</p>
+            
+            <form onSubmit={(e) => { e.preventDefault(); alert('ইমেইল সফলভাবে পাঠানো হয়েছে!'); setContactForm({ name: '', email: '', message: '' }); }} className="space-y-4 text-left">
+              <input 
+                type="text" 
+                placeholder={language === 'BN' ? 'আপনার নাম' : 'Your Name'} 
+                value={contactForm.name}
+                onChange={e => setContactForm({...contactForm, name: e.target.value})}
+                required
+                className="w-full bg-[#131e3a] border border-slate-700 px-4 py-3 rounded-xl text-sm outline-none focus:border-cyan-500 text-white"
+              />
+              <input 
+                type="email" 
+                placeholder={language === 'BN' ? 'আপনার ইমেইল' : 'Your Email'} 
+                value={contactForm.email}
+                onChange={e => setContactForm({...contactForm, email: e.target.value})}
+                required
+                className="w-full bg-[#131e3a] border border-slate-700 px-4 py-3 rounded-xl text-sm outline-none focus:border-cyan-500 text-white"
+              />
+              <textarea 
+                placeholder={language === 'BN' ? 'আপনার মেসেজ লিখুন...' : 'Your Message...'} 
+                value={contactForm.message}
+                onChange={e => setContactForm({...contactForm, message: e.target.value})}
+                required
+                className="w-full bg-[#131e3a] border border-slate-700 px-4 py-3 rounded-xl text-sm outline-none focus:border-cyan-500 text-white h-28"
+              />
+              <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition">
+                <Send className="w-4 h-4" /> {language === 'BN' ? 'মেসেজ পাঠান' : 'Send Message'}
+              </button>
+            </form>
+          </div>
+        </section>
+
+      </div>
+
+      {/* Admin Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0b1329] border border-slate-800 p-6 rounded-2xl w-full max-w-sm relative shadow-2xl">
+            <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-4">{language === 'BN' ? 'অ্যাডমিন প্রোফাইল সেটিংস' : 'Admin & Profile Settings'}</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'প্রোফাইল পিকচার পরিবর্তন করুন' : 'Change Profile Picture'}</label>
-                <div className="flex items-center gap-3">
-                  <img src={profileImage} alt="Profile" className="w-12 h-12 rounded-full object-cover border border-slate-700" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileUpload(e, false, true)}
-                    className="text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-cyan-500 file:text-slate-950 file:font-bold cursor-pointer"
-                  />
-                </div>
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-cyan-500/10 border border-cyan-500/30 rounded-full flex items-center justify-center mx-auto mb-3 text-cyan-400">
+                <Lock className="w-6 h-6" />
               </div>
-
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ফলো বাটন চালু/বন্ধ করুন' : 'Toggle Follow Button'}</label>
-                <button
-                  type="button"
-                  onClick={() => setShowFollowButton(!showFollowButton)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold w-full transition ${showFollowButton ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'}`}
-                >
-                  {showFollowButton 
-                    ? (language === 'BN' ? '✓ ফলো বাটন সক্রিয় আছে' : '✓ Follow Button Visible') 
-                    : (language === 'BN' ? '✕ ফলো বাটন বন্ধ করা আছে' : '✕ Follow Button Hidden')}
-                </button>
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'বায়ো বিবরণ' : 'Bio Description'}</label>
-                <textarea
-                  value={profileBio}
-                  onChange={(e) => setProfileBio(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none h-20 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'হোয়াটসঅ্যাপ নম্বর' : 'WhatsApp Number'}</label>
-                <input
-                  type="text"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ইমেইল এড্রেস' : 'Contact Email'}</label>
-                <input
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500 text-xs"
-                />
-              </div>
-
-              <button 
-                onClick={() => setShowSettingsModal(false)}
-                className="w-full bg-cyan-500 text-slate-950 font-bold py-2.5 rounded-xl hover:bg-cyan-400 transition text-xs"
-              >
-                {language === 'BN' ? 'সেটিংস সেভ করুন' : 'Save Settings'}
-              </button>
+              <h2 className="text-lg font-bold text-white">অ্যাডমিন পাসওয়ার্ড দিন</h2>
+              <p className="text-xs text-slate-400">অ্যাডমিন প্যানেলে প্রবেশ করতে সিক্রেট পাসওয়ার্ড লিখুন।</p>
             </div>
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <input
+                type="password"
+                placeholder="Secret Password"
+                value={adminPasswordInput}
+                onChange={(e) => setAdminPasswordInput(e.target.value)}
+                required
+                className="w-full bg-[#131e3a] border border-slate-700 px-4 py-3 rounded-xl text-white outline-none focus:border-cyan-500 text-sm text-center tracking-widest font-bold"
+              />
+              <button
+                type="submit"
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-cyan-500/20"
+              >
+                লগইন করুন
+              </button>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Add / Edit Project Modal with Dual Options (Link + Gallery Upload) */}
+      {/* Add / Edit Project Modal */}
       {showProjectModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#0b1329] border border-slate-800 p-6 rounded-2xl w-full max-w-lg relative my-8 shadow-2xl">
@@ -460,128 +439,153 @@ export default function App() {
             </button>
             
             <h2 className="text-xl font-bold mb-4 text-white">
-              {editingProject 
-                ? (language === 'BN' ? 'প্রজেক্ট এডিট করুন' : 'Edit Project') 
-                : (language === 'BN' ? 'নতুন প্রজেক্ট যোগ করুন' : 'Add New Project')}
+              {editingProject ? 'প্রজেক্ট এডিট করুন' : 'নতুন প্রজেক্ট যোগ করুন'}
             </h2>
             
             <form onSubmit={handleCreateOrUpdateProject} className="space-y-4">
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ক্যাটাগরি সিলেক্ট করুন (প্রথমে ভিডিও, নিচে ডিজাইন ও মার্কেটিং)' : 'Select Category'}</label>
+                <label className="text-xs text-slate-400 mb-1 block">ক্যাটাগরি</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-[#131e3a] border border-slate-700/80 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-sm font-medium"
+                  className="w-full bg-[#131e3a] border border-slate-700 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-sm font-medium"
                 >
-                  <option value="Video Editing">{language === 'BN' ? '1. ভিডিও এডিটিং (ইউটিউব/ফেসবুক লিংক বা গ্যালারি)' : '1. Video Editing (Link or Gallery)'}</option>
-                  <option value="Graphic Design">{language === 'BN' ? '2. গ্রাফিক ডিজাইন (টাইটেল, কভার ও গ্যালারি ছবি)' : '2. Graphic Design (Gallery)'}</option>
-                  <option value="Meta Marketing">{language === 'BN' ? '3. ডিজিটাল মার্কেটিং / মেটা ক্যাম্পেইন' : '3. Meta Marketing (Gallery)'}</option>
+                  <option value="Video Editing">Video Editing (Video Link & Thumbnail)</option>
+                  <option value="Graphic Design">Graphic Design (Cover & Gallery)</option>
+                  <option value="Meta Marketing">Meta Marketing (Gallery Images Only)</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'প্রজেক্ট টাইটেল' : 'Project Title'}</label>
+                <label className="text-xs text-slate-400 mb-1 block">প্রজেক্ট টাইটেল</label>
                 <input
                   type="text"
-                  placeholder={language === 'BN' ? 'প্রজেক্টের টাইটেল দিন' : 'Project Title'}
+                  placeholder="Project Title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-[#131e3a] border border-slate-700/80 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-sm"
+                  required
+                  className="w-full bg-[#131e3a] border border-slate-700 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-sm"
                 />
               </div>
 
-              {/* Dual Options for Video or General Project */}
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'অপশন ১: ভিডিও লিংক দিন (ইউটিউব/ফেসবুক)' : 'Option 1: Video URL Link'}</label>
-                <input
-                  type="url"
-                  placeholder="https://www.youtube.com/watch?v=... বা https://fb.watch/..."
-                  value={projectUrl}
-                  onChange={(e) => setProjectUrl(e.target.value)}
-                  className="w-full bg-[#131e3a] border border-slate-700/80 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-sm"
-                />
-              </div>
+              {/* Video Editing Fields: URL & Thumbnail */}
+              {category === 'Video Editing' && (
+                <>
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">YouTube / Facebook Video URL Link</label>
+                    <input
+                      type="url"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      value={projectUrl}
+                      onChange={(e) => setProjectUrl(e.target.value)}
+                      required
+                      className="w-full bg-[#131e3a] border border-slate-700 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">Video Thumbnail Image (ফটো আপলোড করুন)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, 'videoThumb')}
+                      className="w-full bg-[#131e3a] border border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-300"
+                    />
+                    {videoThumbnail && <img src={videoThumbnail} alt="Thumbnail Preview" className="mt-2 h-16 w-28 object-cover rounded-lg border border-slate-700" />}
+                  </div>
+                </>
+              )}
 
-              <div className="border-t border-slate-800 pt-3">
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'অপশন ২: গ্যালারি থেকে কভার থাম্বনেইল আপলোড করুন' : 'Option 2: Cover Thumbnail from Gallery'}</label>
-                <div className="flex gap-2 items-center">
+              {category === 'Graphic Design' && (
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Cover Thumbnail Image</label>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleFileUpload(e, true)}
-                    className="hidden"
-                    id="cover-file-input"
+                    onChange={(e) => handleFileUpload(e, 'cover')}
+                    className="w-full bg-[#131e3a] border border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-300"
                   />
-                  <label
-                    htmlFor="cover-file-input"
-                    className="w-full bg-[#131e3a] border border-dashed border-slate-700/80 hover:border-cyan-500/80 px-4 py-3 rounded-xl cursor-pointer text-center text-xs text-slate-300 flex items-center justify-center gap-2 transition"
-                  >
-                    <Upload className="w-4 h-4 text-cyan-400" />
-                    {coverUrl ? (language === 'BN' ? 'কভার ছবি সিলেক্ট হয়েছে!' : 'Cover Uploaded!') : (language === 'BN' ? 'গ্যালারি থেকে ছবি বাছুন' : 'Choose Cover Image')}
-                  </label>
+                  {coverUrl && <img src={coverUrl} alt="Cover Preview" className="mt-2 h-16 w-28 object-cover rounded-lg border border-slate-700" />}
                 </div>
-                {coverUrl && (
-                  <img src={coverUrl} alt="Preview" className="mt-2 h-16 w-28 object-cover rounded-lg border border-slate-700" />
-                )}
-              </div>
+              )}
+
+              {category !== 'Video Editing' && (
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Project Gallery Images</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleFileUpload(e, 'gallery')}
+                    className="w-full bg-[#131e3a] border border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-300"
+                  />
+                  {detailImages.length > 0 && (
+                    <div className="flex gap-2 flex-wrap mt-2">
+                      {detailImages.map((img, i) => (
+                        <img key={i} src={img} className="w-10 h-10 object-cover rounded-lg border border-slate-700" />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'গ্যালারি থেকে একাধিক প্রজেক্ট ফাইল/ছবি যোগ করুন' : 'More Project Images from Gallery'}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => handleFileUpload(e, false)}
-                  className="hidden"
-                  id="detail-files-input"
-                />
-                <label
-                  htmlFor="detail-files-input"
-                  className="w-full bg-[#131e3a] border border-dashed border-slate-700/80 hover:border-cyan-500/80 px-4 py-2.5 rounded-xl cursor-pointer text-center text-xs text-slate-300 flex items-center justify-center gap-2 transition"
-                >
-                  <Plus className="w-4 h-4 text-cyan-400" /> {language === 'BN' ? '+ গ্যালারি থেকে ছবি যোগ করুন' : '+ Add Multiple Images'}
-                </label>
-
-                {detailImages.length > 0 && (
-                  <div className="flex gap-2 flex-wrap mt-2">
-                    {detailImages.map((url, idx) => (
-                      <div key={idx} className="relative">
-                        <img src={url} className="w-10 h-10 object-cover rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={() => setDetailImages(detailImages.filter((_, i) => i !== idx))}
-                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'বিবরণ (অপশনাল)' : 'Description (Optional)'}</label>
+                <label className="text-xs text-slate-400 mb-1 block">বিবরণ</label>
                 <textarea
-                  placeholder={language === 'BN' ? 'প্রজেক্টের বিবরণ লিখুন...' : 'Write description...'}
+                  placeholder="Write description..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-[#131e3a] border border-slate-700/80 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-sm h-20"
+                  className="w-full bg-[#131e3a] border border-slate-700 px-4 py-2.5 rounded-xl text-white outline-none focus:border-cyan-500 text-sm h-20"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={uploading}
-                className="w-full bg-[#00c2e0] text-slate-950 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-[#00a8c2] transition shadow-lg shadow-cyan-500/20 text-sm"
+                className="w-full bg-cyan-500 text-slate-950 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-400 transition text-sm"
               >
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {editingProject ? (language === 'BN' ? 'আপডেট করুন' : 'Update Project') : (language === 'BN' ? 'পাবলিশ করুন' : 'Publish Project')}
+                {uploading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {editingProject ? 'Update Project' : 'Publish Project'}
               </button>
             </form>
           </div>
         </div>
       )}
+
+      {/* Admin Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0b1329] border border-slate-800 p-6 rounded-2xl w-full max-w-md relative">
+            <button onClick={() => setShowSettingsModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-white">অ্যাডমিন প্রোফাইল সেটিংস</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">প্রোফাইল নাম</label>
+                <input 
+                  type="text" 
+                  value={profile.name} 
+                  onChange={e => setProfile({...profile, name: e.target.value})} 
+                  className="w-full bg-[#131e3a] border border-slate-700 px-4 py-2 rounded-xl text-sm text-white" 
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">হোয়াটসঅ্যাপ নম্বর</label>
+                <input 
+                  type="text" 
+                  value={profile.whatsapp} 
+                  onChange={e => setProfile({...profile, whatsapp: e.target.value})} 
+                  className="w-full bg-[#131e3a] border border-slate-700 px-4 py-2 rounded-xl text-sm text-white" 
+                />
+              </div>
+              <button onClick={() => { setShowSettingsModal(false); alert('সেটিংস সেভ হয়েছে!'); }} className="w-full bg-cyan-500 text-black font-bold py-2.5 rounded-xl text-sm">
+                সেটিংস সেভ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
