@@ -5,7 +5,6 @@ import { FilterTabs } from './components/FilterTabs';
 import { BehanceShowcase } from './components/BehanceShowcase';
 import { Footer } from './components/Footer';
 import { WhatsAppWidget } from './components/WhatsAppWidget';
-import { AdminModal } from './components/Admin';
 import { supabase, type Project, type BehanceProject } from './lib/supabase';
 import { Lock, Plus, LogOut, X, Upload, Trash2, Loader2 } from 'lucide-react';
 
