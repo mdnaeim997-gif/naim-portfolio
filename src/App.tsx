@@ -6,25 +6,29 @@ import { BehanceShowcase } from './components/BehanceShowcase';
 import { Footer } from './components/Footer';
 import { WhatsAppWidget } from './components/WhatsAppWidget';
 import { supabase, type Project, type BehanceProject } from './lib/supabase';
-import { Plus, X, Upload, Loader2, Globe, Settings } from 'lucide-react';
+import { Plus, X, Upload, Loader2, Globe, Settings, Lock, LogOut } from 'lucide-react';
 
 export default function App() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [projects, setProjects] = useState<Project[]>([]);
   const [behanceProjects, setBehanceProjects] = useState<BehanceProject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(true);
   const [language, setLanguage] = useState<'BN' | 'EN'>('BN');
 
+  // Contact & Profile Settings State
   const [contactEmail, setContactEmail] = useState('contact@naeimvisual.com');
   const [contactPhone, setContactPhone] = useState('+880123456789');
+  const [profileImage, setProfileImage] = useState('https://i.ibb.co/L8xT0X2/profile.jpg');
+  const [profileBio, setProfileBio] = useState('হাই, আমি নাঈম — একজন ভিজ্যুয়াল স্টোরিটেলার এবং মেটা মার্কেটার।');
 
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
+  // Form State
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Video Editing');
+  const [category, setCategory] = useState('Graphic Design');
   const [coverUrl, setCoverUrl] = useState('');
   const [projectUrl, setProjectUrl] = useState('');
   const [description, setDescription] = useState('');
@@ -57,6 +61,7 @@ export default function App() {
     }
   };
 
+  // Get Auto Thumbnail for YouTube & Facebook Videos
   const getAutoThumbnail = (url: string) => {
     if (!url) return '';
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -67,6 +72,7 @@ export default function App() {
     return '';
   };
 
+  // Handle Image Upload for Cover and Portfolio Gallery
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isCover: boolean) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -94,7 +100,7 @@ export default function App() {
       }
     } catch (error) {
       console.error(error);
-      alert(language === 'BN' ? 'ফাইল আপলোড ব্যর্থ হয়েছে!' : 'File upload failed!');
+      alert(language === 'BN' ? 'গ্যালারি থেকে ফাইল আপলোড ব্যর্থ হয়েছে!' : 'File upload failed!');
     } finally {
       setUploading(false);
     }
@@ -105,6 +111,8 @@ export default function App() {
     setUploading(true);
 
     let finalCoverUrl = coverUrl;
+
+    // For Video Editing, auto generate cover if not uploaded manually
     if (category === 'Video Editing' && projectUrl) {
       const autoThumb = getAutoThumbnail(projectUrl);
       if (autoThumb) finalCoverUrl = autoThumb;
@@ -143,7 +151,7 @@ export default function App() {
 
   const resetForm = () => {
     setTitle('');
-    setCategory('Video Editing');
+    setCategory('Graphic Design');
     setCoverUrl('');
     setProjectUrl('');
     setDescription('');
@@ -153,7 +161,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-cyan-500 selection:text-white">
-      {/* Navbar */}
+      {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
           <h1 className="text-2xl font-extrabold bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-500 bg-clip-text text-transparent">
@@ -161,6 +169,7 @@ export default function App() {
           </h1>
 
           <div className="flex items-center gap-3">
+            {/* Language Switcher */}
             <button 
               onClick={() => setLanguage(language === 'EN' ? 'BN' : 'EN')}
               className="flex items-center gap-1.5 text-xs bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-bold px-3 py-1.5 rounded-full hover:bg-cyan-500/20 transition"
@@ -169,12 +178,13 @@ export default function App() {
               <span>{language === 'EN' ? 'বাংলা' : 'English'}</span>
             </button>
 
+            {/* Admin Controls */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { resetForm(); setShowProjectModal(true); }}
                 className="flex items-center gap-1 bg-cyan-500 text-slate-950 font-bold px-3 py-1.5 rounded-lg hover:bg-cyan-400 text-sm shadow-md transition"
               >
-                <Plus className="w-4 h-4" /> {language === 'BN' ? 'প্রজেক্ট যোগ করুন' : 'Add Project'}
+                <Plus className="w-4 h-4" /> {language === 'BN' ? 'প্রজেক্ট আপলোড' : 'Add Project'}
               </button>
               <button
                 onClick={() => setShowSettingsModal(true)}
@@ -189,7 +199,7 @@ export default function App() {
       </nav>
 
       <main className="pt-20">
-        <Hero language={language} />
+        <Hero language={language} profileImage={profileImage} profileBio={profileBio} />
 
         <div className="max-w-7xl mx-auto px-4 my-8">
           <FilterTabs activeCategory={activeCategory} onSelectCategory={setActiveCategory} language={language} />
@@ -230,45 +240,66 @@ export default function App() {
       <Footer email={contactEmail} phone={contactPhone} language={language} />
       <WhatsAppWidget phone={contactPhone} />
 
-      {/* Settings Modal */}
+      {/* Complete Settings Modal */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setShowSettingsModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-4">{language === 'BN' ? 'পোর্টফোলিও সেটিংস' : 'Portfolio Settings'}</h2>
+            <h2 className="text-xl font-bold mb-4">{language === 'BN' ? 'পোর্টফোলিও প্রোফাইল ও সেটিংস' : 'Profile & Settings'}</h2>
             <div className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'প্রোফাইল ছবি URL' : 'Profile Image URL'}</label>
+                <input
+                  type="text"
+                  value={profileImage}
+                  onChange={(e) => setProfileImage(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'বায়ো/বিবরণ' : 'Bio Text'}</label>
+                <textarea
+                  value={profileBio}
+                  onChange={(e) => setProfileBio(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none h-20 text-xs"
+                />
+              </div>
+
               <div>
                 <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ইমেইল এড্রেস' : 'Email Address'}</label>
                 <input
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500 text-xs"
                 />
               </div>
+
               <div>
                 <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ফোন / হোয়াটসঅ্যাপ' : 'Phone / WhatsApp'}</label>
                 <input
                   type="text"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500 text-xs"
                 />
               </div>
+
               <button 
                 onClick={() => setShowSettingsModal(false)}
                 className="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded-xl hover:bg-cyan-400 transition"
               >
-                {language === 'BN' ? 'সেভ করুন' : 'Save Settings'}
+                {language === 'BN' ? 'সেটিংসেভ করুন' : 'Save All Settings'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Add / Edit Project Modal */}
+      {/* Upload Modal (Video Link OR Gallery Images) */}
       {showProjectModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-lg relative my-8">
@@ -287,20 +318,20 @@ export default function App() {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500 font-bold"
                 >
-                  <option value="Video Editing">{language === 'BN' ? 'ভিডিও এডিটিং' : 'Video Editing'}</option>
-                  <option value="Graphic Design">{language === 'BN' ? 'গ্রাফিক ডিজাইন' : 'Graphic Design'}</option>
-                  <option value="Meta Marketing">{language === 'BN' ? 'ডিজিটাল মার্কেটিং' : 'Meta Marketing'}</option>
-                  <option value="Behance">{language === 'BN' ? 'বিহ্যান্স (Behance)' : 'Behance'}</option>
+                  <option value="Graphic Design">{language === 'BN' ? 'গ্রাফিক ডিজাইন (গ্যালারি থেকে)' : 'Graphic Design (Gallery)'}</option>
+                  <option value="Meta Marketing">{language === 'BN' ? 'ডিজিটাল মার্কেটিং (গ্যালারি থেকে)' : 'Meta Marketing (Gallery)'}</option>
+                  <option value="Video Editing">{language === 'BN' ? 'ভিডিও এডিটিং (ইউটিউব/ফেসবুক লিংক)' : 'Video Editing (Video URL)'}</option>
+                  <option value="Behance">{language === 'BN' ? 'বিহ্যান্স প্রজেক্ট' : 'Behance Project'}</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'টাইটেল (বাধ্যতামূলক)' : 'Project Title (Required)'}</label>
+                <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'টাইটেল (বাধ্যতামূলক)' : 'Project Title'}</label>
                 <input
                   type="text"
-                  placeholder={language === 'BN' ? 'প্রজেক্টের টাইটেল দিন' : 'Enter project title'}
+                  placeholder={language === 'BN' ? 'প্রজেক্ট টাইটেল' : 'Project Title'}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
@@ -308,9 +339,10 @@ export default function App() {
                 />
               </div>
 
+              {/* Video Option */}
               {category === 'Video Editing' ? (
                 <div>
-                  <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ভিডিও লিংক (YouTube / Facebook)' : 'Video URL'}</label>
+                  <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'ইউটিউব বা ফেসবুক ভিডিও লিংক' : 'YouTube or Facebook Video Link'}</label>
                   <input
                     type="url"
                     placeholder="https://www.youtube.com/watch?v=... বা https://fb.watch/..."
@@ -320,43 +352,14 @@ export default function App() {
                     className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
                   />
                   <p className="text-[10px] text-cyan-400 mt-1">
-                    {language === 'BN' ? '* ইউটিউব বা ফেসবুক লিংক দিলেই ভিডিও এবং থাম্বনেইল অটোমেটিক লোড হবে।' : '* Thumbnail will load automatically.'}
+                    {language === 'BN' ? '* ইউটিউব/ফেসবুক ভিডিও লিংক দিলেই অরিজিনাল থাম্বনেইলসহ ভিডিও প্লেয়ার শো করবে।' : '* Thumbnail will load automatically from the link.'}
                   </p>
                 </div>
-              ) : category === 'Behance' ? (
-                <div>
-                  <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'Behance প্রজেক্ট লিংক' : 'Behance Project URL'}</label>
-                  <input
-                    type="url"
-                    placeholder="https://www.behance.net/gallery/..."
-                    value={projectUrl}
-                    onChange={(e) => setProjectUrl(e.target.value)}
-                    required
-                    className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none focus:border-cyan-500"
-                  />
-                  
-                  <div className="mt-3">
-                    <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'Behance কভার ছবি আপলোড করুন' : 'Behance Cover Image'}</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileUpload(e, true)}
-                      className="hidden"
-                      id="behance-cover-input"
-                    />
-                    <label
-                      htmlFor="behance-cover-input"
-                      className="w-full bg-slate-800 border border-dashed border-slate-600 hover:border-cyan-500 px-4 py-2.5 rounded-xl cursor-pointer text-center text-xs text-slate-300 flex items-center justify-center gap-2"
-                    >
-                      <Upload className="w-4 h-4 text-cyan-400" />
-                      {coverUrl ? (language === 'BN' ? 'কভার ছবি নির্বাচিত হয়েছে!' : 'Cover Image Selected!') : (language === 'BN' ? 'গ্যালারি থেকে ছবি বাছুন' : 'Choose Cover')}
-                    </label>
-                  </div>
-                </div>
               ) : (
+                /* Gallery Upload Option for Graphic Design and Marketing */
                 <>
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'গ্যালারি/মোবাইল/পিসি থেকে থাম্বনেইল কভার ফটো' : 'Cover Image'}</label>
+                    <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'গ্যালারি/মোবাইল/পিসি থেকে থাম্বনেইল কভার ফটো' : 'Cover Thumbnail from Gallery'}</label>
                     <div className="flex gap-2 items-center">
                       <input
                         type="file"
@@ -370,7 +373,7 @@ export default function App() {
                         className="flex-1 bg-slate-800 border border-dashed border-slate-600 hover:border-cyan-500 px-4 py-3 rounded-xl cursor-pointer text-center text-sm text-slate-300 flex items-center justify-center gap-2"
                       >
                         <Upload className="w-4 h-4 text-cyan-400" />
-                        {coverUrl ? (language === 'BN' ? 'ছবি আপলোড সম্পন্ন!' : 'Image Uploaded!') : (language === 'BN' ? 'ছবি সিলেক্ট করুন' : 'Choose Cover')}
+                        {coverUrl ? (language === 'BN' ? 'কভার ছবি সিলেক্ট হয়েছে!' : 'Cover Image Uploaded!') : (language === 'BN' ? 'গ্যালারি থেকে ছবি আপলোড করুন' : 'Choose Cover Image')}
                       </label>
                     </div>
                     {coverUrl && (
@@ -379,7 +382,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'প্রজেক্টের অন্যান্য ছবিসমূহ' : 'Gallery Images'}</label>
+                    <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'প্রজেক্টের অন্যান্য ইমেজ/ডিজাইন ফাইল' : 'More Project Images from Gallery'}</label>
                     <input
                       type="file"
                       accept="image/*"
@@ -392,7 +395,7 @@ export default function App() {
                       htmlFor="detail-files-input"
                       className="w-full bg-slate-800 border border-dashed border-slate-600 hover:border-cyan-500 px-4 py-2 rounded-xl cursor-pointer text-center text-sm text-slate-300 flex items-center justify-center gap-2"
                     >
-                      <Plus className="w-4 h-4 text-cyan-400" /> {language === 'BN' ? '+ আরও ছবি সিলেক্ট করুন' : '+ Add More Images'}
+                      <Plus className="w-4 h-4 text-cyan-400" /> {language === 'BN' ? '+ গ্যালারি থেকে একাধিক প্রজেক্ট ফাইল যুক্ত করুন' : '+ Add Multiple Images'}
                     </label>
 
                     {detailImages.length > 0 && (
@@ -418,7 +421,7 @@ export default function App() {
               <div>
                 <label className="text-xs text-slate-400 mb-1 block">{language === 'BN' ? 'বিবরণ (অপশনাল)' : 'Description (Optional)'}</label>
                 <textarea
-                  placeholder={language === 'BN' ? 'প্রজেক্ট সম্পর্কে কিছু লিখুন...' : 'Write description...'}
+                  placeholder={language === 'BN' ? 'প্রজেক্টের বিবরণ...' : 'Write description...'}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-white outline-none h-20"
