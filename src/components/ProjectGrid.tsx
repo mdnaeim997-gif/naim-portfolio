@@ -1,110 +1,135 @@
-import { useEffect, useState } from 'react';
-import { supabase, type Project } from '../lib/supabase';
-import { ProjectCard } from './ProjectCard';
-import { FilterTabs, type TabKey } from './FilterTabs';
-import { BehanceShowcase } from './BehanceShowcase';
-import { type Lang, type Translation, translations, getStoredLang, subscribeLang } from '../lib/i18n';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import React from 'react';
+import { Play, ExternalLink, Edit2, Trash2 } from 'lucide-react';
+import { type Project } from '../lib/supabase';
 
-export function ProjectGrid() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [active, setActive] = useState<TabKey>('all');
-  const [loading, setLoading] = useState(true);
-  const [lang, setLang] = useState<Lang>(getStoredLang());
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState('');
+interface ProjectGridProps {
+  projects: Project[];
+  activeCategory: string;
+  isAdmin: boolean;
+  onEdit: (project: Project) => void;
+  onDelete: (id: string) => void;
+}
 
-  useEffect(() => {
-    const unsub = subscribeLang((l) => setLang(l));
-    return unsub;
-  }, []);
+export function ProjectGrid({ projects, activeCategory, isAdmin, onEdit, onDelete }: ProjectGridProps) {
+  // Category Filtering
+  const filteredProjects = projects.filter((project) => {
+    if (activeCategory === 'All') return true;
+    return project.category.toLowerCase() === activeCategory.toLowerCase();
+  });
 
-  const loadProjects = async () => {
-    const { data } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
-    if (data) setProjects(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadProjects();
-    // Auto-sync Behance on first load
-    syncBehance();
-  }, []);
-
-  const syncBehance = async () => {
-    setSyncing(true);
-    setSyncMsg('');
-    try {
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-behance`;
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
-        const result = await response.json();
-        setSyncMsg(result.message || 'Sync complete');
-        await loadProjects();
-      }
-    } catch {
-      // Silent fail — local projects still show
+  // Extract original Youtube Thumbnail directly from the original link
+  const getSocialThumbnail = (project: Project) => {
+    if (project.cover_url && project.cover_url.trim() !== '') {
+      return project.cover_url;
     }
-    setSyncing(false);
-    setTimeout(() => setSyncMsg(''), 5000);
+    const url = project.project_url || '';
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      if (match && match[2]) {
+        return `https://img.youtube.com/vi/${match[2]}/maxresdefault.jpg`;
+      }
+    }
+    return '';
   };
 
-  const filtered = active === 'all' ? projects : projects.filter((p) => p.category === active);
-  const t: Translation = translations[lang];
+  if (filteredProjects.length === 0) {
+    return (
+      <div className="text-center py-12 text-slate-500">
+        কোনো প্রজেক্ট পাওয়া যায়নি!
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <FilterTabs active={active} onChange={setActive} />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {filteredProjects.map((project) => {
+        const thumbnailUrl = getSocialThumbnail(project);
+        const isVideo = project.category === 'Video Editing' || (project.project_url && (project.project_url.includes('youtube') || project.project_url.includes('facebook') || project.project_url.includes('youtu.be')));
 
-      {/* Behance sync indicator */}
-      <div className="flex items-center justify-center gap-3 mb-6">
-        <button
-          onClick={syncBehance}
-          disabled={syncing}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-light text-xs text-slate-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
-        >
-          {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-          {syncing ? 'Syncing Behance...' : 'Sync Behance'}
-        </button>
-        {syncMsg && (
-          <span className="text-xs text-emerald-400">{syncMsg}</span>
-        )}
-      </div>
+        return (
+          <div 
+            key={project.id} 
+            className="group relative bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-cyan-500/50 transition-all duration-300 flex flex-col justify-between"
+          >
+            <div>
+              {/* Thumbnail Display */}
+              <div className="relative aspect-video overflow-hidden bg-slate-950">
+                {thumbnailUrl ? (
+                  <img 
+                    src={thumbnailUrl} 
+                    alt={project.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      // Fallback if maxresdefault doesn't exist
+                      if (project.project_url && (project.project_url.includes('youtube') || project.project_url.includes('youtu.be'))) {
+                        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                        const match = project.project_url.match(regExp);
+                        if (match && match[2]) {
+                          (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${match[2]}/hqdefault.jpg`;
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-600 text-xs">
+                    No Thumbnail Available
+                  </div>
+                )}
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="glass rounded-2xl overflow-hidden animate-pulse">
-              <div className="aspect-[16/10] bg-base-700/50" />
-              <div className="p-5 space-y-3">
-                <div className="h-5 w-2/3 rounded bg-base-700/50" />
-                <div className="h-4 w-full rounded bg-base-700/40" />
+                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  {project.project_url && (
+                    <a 
+                      href={project.project_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-3 bg-cyan-500 text-slate-950 rounded-full font-bold shadow-lg hover:scale-110 transition-transform flex items-center gap-2 text-sm"
+                    >
+                      {isVideo ? <Play className="w-5 h-5 fill-current" /> : <ExternalLink className="w-5 h-5" />}
+                      <span>{isVideo ? 'Watch Video' : 'View Project'}</span>
+                    </a>
+                  )}
+                </div>
+                <span className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-cyan-400 text-xs px-2.5 py-1 rounded-full font-medium">
+                  {project.category}
+                </span>
+              </div>
+
+              {/* Title & Description */}
+              <div className="p-5">
+                <h3 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors line-clamp-1">
+                  {project.title}
+                </h3>
+                {project.description && (
+                  <p className="text-slate-400 text-xs mt-2 line-clamp-2">
+                    {project.description}
+                  </p>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-slate-500">{t.work.empty}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
-        </div>
-      )}
 
-      {/* Behance showcase module — always visible below the project grid */}
-      <div className="mt-16">
-        <BehanceShowcase />
-      </div>
+            {/* Admin Controls */}
+            {isAdmin && (
+              <div className="p-4 border-t border-slate-800/80 bg-slate-900/50 flex justify-end gap-2">
+                <button
+                  onClick={() => onEdit(project)}
+                  className="p-2 text-slate-400 hover:text-cyan-400 bg-slate-800 rounded-lg transition"
+                  title="Edit"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDelete(project.id)}
+                  className="p-2 text-slate-400 hover:text-red-400 bg-slate-800 rounded-lg transition"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
