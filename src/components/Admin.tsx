@@ -1,28 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Image as ImageIcon, Check, AlertCircle, Loader2, ArrowLeft, Upload, Link as LinkIcon } from 'lucide-react';
+import { Plus, Trash2, Image as ImageIcon, Check, AlertCircle, Loader2, X, Upload } from 'lucide-react';
 import { supabase, type Project, type ProjectImage } from '../lib/supabase';
 
-interface AdminProps {
-  onClose?: () => void;
+interface AdminModalProps {
+  isOpen: boolean;
+  onClose: () => void;
   project?: Project | null;
+  onSuccess: () => void;
 }
 
-export function Admin({ onClose, project }: AdminProps) {
-  const [title, setTitle] = useState(project?.title || '');
-  const [category, setCategory] = useState(project?.category || 'Graphic Design');
-  const [coverUrl, setCoverUrl] = useState(project?.cover_url || '');
-  const [behanceUrl, setBehanceUrl] = useState(project?.behance_url || '');
-  const [projectUrl, setProjectUrl] = useState(project?.project_url || '');
-  const [description, setDescription] = useState(project?.description || '');
+export function AdminModal({ isOpen, onClose, project, onSuccess }: AdminModalProps) {
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('Graphic Design');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [behanceUrl, setBehanceUrl] = useState('');
+  const [projectUrl, setProjectUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [detailImages, setDetailImages] = useState<ProjectImage[]>([]);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingDetail, setUploadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    if (project?.id) {
+    if (project) {
+      setTitle(project.title || '');
+      setCategory(project.category || 'Graphic Design');
+      setCoverUrl(project.cover_url || '');
+      setBehanceUrl(project.behance_url || '');
+      setProjectUrl(project.project_url || '');
+      setDescription(project.description || '');
+
       supabase
         .from('project_images')
         .select('*')
@@ -31,8 +39,18 @@ export function Admin({ onClose, project }: AdminProps) {
         .then(({ data }) => {
           if (data) setDetailImages(data);
         });
+    } else {
+      setTitle('');
+      setCategory('Graphic Design');
+      setCoverUrl('');
+      setBehanceUrl('');
+      setProjectUrl('');
+      setDescription('');
+      setDetailImages([]);
     }
-  }, [project]);
+  }, [project, isOpen]);
+
+  if (!isOpen) return null;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isCover: boolean) => {
     const files = e.target.files;
@@ -107,7 +125,7 @@ export function Admin({ onClose, project }: AdminProps) {
       title,
       category,
       cover_url: coverUrl,
-      behance_url: behanceUrl || 'https://www.behance.net/',
+      behance_url: behanceUrl || projectUrl || 'https://www.behance.net/',
       project_url: projectUrl,
       description,
       source: 'website' as const,
@@ -137,144 +155,141 @@ export function Admin({ onClose, project }: AdminProps) {
     }
 
     setSaving(false);
-    setSuccess('Project saved successfully!');
-    setTimeout(() => {
-      if (onClose) onClose();
-    }, 1000);
+    onSuccess();
+    onClose();
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-card rounded-xl border border-border my-8">
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
-        <h2 className="text-2xl font-bold">{project ? 'Edit Project' : 'Add New Project'}</h2>
-        {onClose && (
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg text-muted-foreground">
-            <ArrowLeft className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+      <div className="relative w-full max-w-2xl bg-[#0f172a] border border-slate-800 rounded-2xl p-6 shadow-2xl text-white my-8 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+          <h2 className="text-xl font-semibold">{project ? 'Edit Project' : 'Add New Project'}</h2>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors">
+            <X className="w-5 h-5" />
           </button>
-        )}
-      </div>
-
-      {error && (
-        <div className="p-4 mb-6 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 flex items-center gap-2">
-          <AlertCircle className="w-5 h-5" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {success && (
-        <div className="p-4 mb-6 rounded-lg bg-green-500/10 border border-green-500/20 text-green-500 flex items-center gap-2">
-          <Check className="w-5 h-5" />
-          <span>{success}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-2">Title</label>
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full p-3 rounded-lg border border-border bg-background"
-            placeholder="Project Title"
-          />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full p-3 rounded-lg border border-border bg-background"
-          >
-            <option value="Graphic Design">Graphic Design</option>
-            <option value="Video Editing">Video Editing</option>
-            <option value="Motion Graphics">Motion Graphics</option>
-            <option value="UI/UX Design">UI/UX Design</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Cover / Thumbnail Image</label>
-          {coverUrl && (
-            <div className="relative mb-3 aspect-video max-w-md rounded-lg overflow-hidden border border-border">
-              <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />
-            </div>
-          )}
-          <label className="inline-flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg cursor-pointer text-sm font-medium">
-            {uploadingCover ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            <span>{coverUrl ? 'Change Cover' : 'Upload Cover'}</span>
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, true)} />
-          </label>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Detailed Showcase Images (Optional)</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
-            {detailImages.map((img) => (
-              <div key={img.id} className="relative aspect-video rounded-lg overflow-hidden border border-border group">
-                <img src={img.image_url} alt="Detail" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeDetailImage(img)}
-                  className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+        {error && (
+          <div className="p-3 mb-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <span>{error}</span>
           </div>
-          <label className="inline-flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg cursor-pointer text-sm font-medium">
-            {uploadingDetail ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-            <span>Add Detail Images</span>
-            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFileUpload(e, false)} />
-          </label>
-        </div>
+        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Behance URL (Optional)</label>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Title</label>
             <input
-              type="url"
-              value={behanceUrl}
-              onChange={(e) => setBehanceUrl(e.target.value)}
-              className="w-full p-3 rounded-lg border border-border bg-background"
-              placeholder="https://behance.net/..."
+              type="text"
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-500"
+              placeholder="Project Title"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Video Link (YouTube / Facebook)</label>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-500"
+            >
+              <option value="Graphic Design">Graphic Design</option>
+              <option value="Video Editing">Video Editing</option>
+              <option value="Motion Graphics">Motion Graphics</option>
+              <option value="UI/UX Design">UI/UX Design</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Cover / Thumbnail Image</label>
+            <div className="border-2 border-dashed border-slate-800 rounded-xl p-4 text-center bg-slate-900/50">
+              {coverUrl ? (
+                <div className="relative aspect-video max-w-sm mx-auto rounded-lg overflow-hidden border border-slate-700">
+                  <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center cursor-pointer py-4">
+                  {uploadingCover ? <Loader2 className="w-8 h-8 animate-spin text-cyan-500" /> : <Upload className="w-8 h-8 text-slate-500 mb-2" />}
+                  <span className="text-sm text-slate-400">Click to upload cover image</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, true)} />
+                </label>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Detailed Images (4-5 showcase images)</label>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {detailImages.map((img) => (
+                <div key={img.id} className="relative aspect-video rounded-lg overflow-hidden border border-slate-800 group">
+                  <img src={img.image_url} alt="Detail" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeDetailImage(img)}
+                    className="absolute top-1 right-1 p-1 bg-red-600/80 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg cursor-pointer text-xs font-medium text-slate-300">
+              {uploadingDetail ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              <span>Add detail images</span>
+              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFileUpload(e, false)} />
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Video Link (YouTube / Facebook) or Behance Link</label>
             <input
               type="url"
               value={projectUrl}
-              onChange={(e) => setProjectUrl(e.target.value)}
-              className="w-full p-3 rounded-lg border border-border bg-background"
+              onChange={(e) => {
+                setProjectUrl(e.target.value);
+                setBehanceUrl(e.target.value);
+              }}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-500"
               placeholder="https://youtube.com/watch?v=... or Facebook video URL"
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Description (Optional)</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-3 rounded-lg border border-border bg-background"
-            rows={3}
-          />
-        </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Description (optional)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-500"
+              rows={3}
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-        >
-          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-          <span>{saving ? 'Saving Project...' : 'Save Project'}</span>
-        </button>
-      </form>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{saving ? 'Saving...' : 'Create'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
+}
+
+export function Admin() {
+  return null;
 }
