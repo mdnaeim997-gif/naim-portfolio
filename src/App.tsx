@@ -8,7 +8,7 @@ import { WhatsAppWidget } from './components/WhatsAppWidget';
 import { supabase, type Project, type BehanceProject } from './lib/supabase';
 import { Lock, Plus, LogOut, X, Upload, Trash2, Loader2 } from 'lucide-react';
 
-export function App() {
+export default function App() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [projects, setProjects] = useState<Project[]>([]);
   const [behanceProjects, setBehanceProjects] = useState<BehanceProject[]>([]);
