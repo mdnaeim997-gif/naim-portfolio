@@ -11,15 +11,13 @@ interface ProjectGridProps {
 }
 
 export function ProjectGrid({ projects, activeCategory, isAdmin, onEdit, onDelete }: ProjectGridProps) {
-  // Category Filtering
   const filteredProjects = projects.filter((project) => {
     if (activeCategory === 'All') return true;
-    return project.category.toLowerCase() === activeCategory.toLowerCase();
+    return project.category.toLowerCase().trim() === activeCategory.toLowerCase().trim();
   });
 
-  // Extract original Youtube Thumbnail directly from the original link
   const getSocialThumbnail = (project: Project) => {
-    if (project.cover_url && project.cover_url.trim() !== '') {
+    if (project.cover_url && !project.cover_url.includes('default/hqdefault.jpg')) {
       return project.cover_url;
     }
     const url = project.project_url || '';
@@ -27,10 +25,10 @@ export function ProjectGrid({ projects, activeCategory, isAdmin, onEdit, onDelet
       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
       const match = url.match(regExp);
       if (match && match[2]) {
-        return `https://img.youtube.com/vi/${match[2]}/maxresdefault.jpg`;
+        return `https://img.youtube.com/vi/${match[2]}/hqdefault.jpg`;
       }
     }
-    return '';
+    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop';
   };
 
   if (filteredProjects.length === 0) {
@@ -53,29 +51,12 @@ export function ProjectGrid({ projects, activeCategory, isAdmin, onEdit, onDelet
             className="group relative bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-cyan-500/50 transition-all duration-300 flex flex-col justify-between"
           >
             <div>
-              {/* Thumbnail Display */}
               <div className="relative aspect-video overflow-hidden bg-slate-950">
-                {thumbnailUrl ? (
-                  <img 
-                    src={thumbnailUrl} 
-                    alt={project.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    onError={(e) => {
-                      // Fallback if maxresdefault doesn't exist
-                      if (project.project_url && (project.project_url.includes('youtube') || project.project_url.includes('youtu.be'))) {
-                        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                        const match = project.project_url.match(regExp);
-                        if (match && match[2]) {
-                          (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${match[2]}/hqdefault.jpg`;
-                        }
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-600 text-xs">
-                    No Thumbnail Available
-                  </div>
-                )}
+                <img 
+                  src={thumbnailUrl} 
+                  alt={project.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
 
                 <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   {project.project_url && (
@@ -95,7 +76,6 @@ export function ProjectGrid({ projects, activeCategory, isAdmin, onEdit, onDelet
                 </span>
               </div>
 
-              {/* Title & Description */}
               <div className="p-5">
                 <h3 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors line-clamp-1">
                   {project.title}
@@ -108,7 +88,6 @@ export function ProjectGrid({ projects, activeCategory, isAdmin, onEdit, onDelet
               </div>
             </div>
 
-            {/* Admin Controls */}
             {isAdmin && (
               <div className="p-4 border-t border-slate-800/80 bg-slate-900/50 flex justify-end gap-2">
                 <button
